@@ -28,9 +28,9 @@ import {
 import "./Products.css";
 
 import API_BASE_URL from "../config/api.js";
+import API_BASE_URL from "../../services/api.js";
 
-const API =
-  "https://inventry-management-system-k9a5.onrender.com/api/products";
+const API = "https://inventry-management-system-k9a5.onrender.com/api/products";
 
 const SERVER_URL =
   "https://inventry-management-system-k9a5.onrender.com";
