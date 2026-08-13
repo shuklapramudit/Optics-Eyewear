@@ -1,0 +1,158 @@
+/* =========================================
+   GLOBAL
+========================================= */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+
+  background: #f5f7fb;
+  color: #172033;
+}
+
+
+/* =========================================
+   APPLICATION SHELL
+========================================= */
+
+.app-shell {
+  width: 100%;
+  min-height: 100vh;
+
+  display: block;
+
+  background: #f5f7fb;
+}
+
+
+/* =========================================
+   MAIN AREA
+========================================= */
+
+.app-main {
+  position: relative;
+
+  width: calc(100% - 255px);
+  min-width: 0;
+  min-height: 100vh;
+
+  margin-left: 255px;
+
+  display: flex;
+  flex-direction: column;
+
+  box-sizing: border-box;
+}
+
+
+/* =========================================
+   HEADER
+========================================= */
+
+.app-header {
+  width: 100%;
+  height: 76px;
+  min-height: 76px;
+
+  background: #ffffff;
+
+  border-bottom: 1px solid #e7eaf0;
+
+  display: flex;
+  align-items: center;
+
+  position: sticky;
+  top: 0;
+
+  z-index: 50;
+
+  box-sizing: border-box;
+}
+
+
+/* =========================================
+   PAGE CONTENT
+========================================= */
+
+.app-content {
+  width: 100%;
+  min-width: 0;
+
+  flex: 1;
+
+  padding: 30px;
+
+  box-sizing: border-box;
+
+  overflow-x: hidden;
+}
+
+
+/* =========================================
+   ROUTE LOADING
+========================================= */
+
+.route-loading {
+  width: 100%;
+  min-height: 100vh;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: #f5f7fb;
+
+  color: #2563eb;
+
+  font-size: 18px;
+  font-weight: 600;
+}
+
+
+/* =========================================
+   MOBILE
+========================================= */
+
+@media (max-width: 900px) {
+
+  .app-main {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .app-header {
+    height: 70px;
+    min-height: 70px;
+  }
+
+  .app-content {
+    padding: 20px;
+  }
+
+}
+
+
+@media (max-width: 600px) {
+
+  .app-content {
+    padding: 15px;
+  }
+
+}
