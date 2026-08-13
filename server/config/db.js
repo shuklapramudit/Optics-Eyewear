@@ -10,9 +10,13 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME,
   port: Number(process.env.DB_PORT) || 3306,
 
+  ssl: {
+    rejectUnauthorized: false,
+  },
+
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
 });
 
 export const testDatabaseConnection = async () => {
@@ -26,20 +30,15 @@ export const testDatabaseConnection = async () => {
     console.log("MySQL database connected successfully.");
 
     return true;
-
   } catch (error) {
-
     console.error("MySQL database connection failed.");
     console.error("Error:", error.message);
 
     return false;
-
   } finally {
-
     if (connection) {
       connection.release();
     }
-
   }
 };
 
