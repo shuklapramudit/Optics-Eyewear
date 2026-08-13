@@ -14,7 +14,8 @@ import {
 
 import "./Customers.css";
 
-const API = "http://localhost:5000/api/customers";
+const API =
+  "https://inventry-management-system-k9a5.onrender.com/api/customers";
 
 const EMPTY_FORM = {
   FullName: "",
