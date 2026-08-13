@@ -23,7 +23,7 @@ import {
 import "./Purchases.css";
 
 const API =
-  "http://localhost:5000/api/purchases";
+  "https://inventry-management-system-k9a5.onrender.com/api/purchases";
 
 function Purchases() {
 

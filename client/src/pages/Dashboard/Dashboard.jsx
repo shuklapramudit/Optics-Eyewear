@@ -64,12 +64,11 @@ function Dashboard() {
   // API
   // =====================================================
 
-  const DASHBOARD_API =
-    "http://localhost:5000/api/dashboard";
+const DASHBOARD_API =
+  "https://inventry-management-system-k9a5.onrender.com/api/dashboard";
 
-
-  const STOCK_API =
-    "http://localhost:5000/api/products";
+const STOCK_API =
+  "https://inventry-management-system-k9a5.onrender.com/api/products";
 
 
   const LOW_STOCK_LIMIT = 10;

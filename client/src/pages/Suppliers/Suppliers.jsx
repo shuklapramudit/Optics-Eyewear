@@ -24,7 +24,7 @@ import {
 import "./Suppliers.css";
 
 const API =
-  "http://localhost:5000/api/suppliers";
+  "https://inventry-management-system-k9a5.onrender.com/api/suppliers";
 
 const emptyForm = {
   SupplierCode: "",

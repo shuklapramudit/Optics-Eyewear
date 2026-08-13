@@ -27,9 +27,13 @@ import {
 
 import "./Products.css";
 
-const API = "http://localhost:5000/api/products";
-const SERVER_URL = "http://localhost:5000";
+import API_BASE_URL from "../config/api.js";
 
+const API =
+  "https://inventry-management-system-k9a5.onrender.com/api/products";
+
+const SERVER_URL =
+  "https://inventry-management-system-k9a5.onrender.com";
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 const MAX_IMAGES = 10;
 

@@ -29,13 +29,13 @@ import "./Sales.css";
 
 
 const API =
-  "http://localhost:5000/api/sales";
+  "https://inventry-management-system-k9a5.onrender.com/api/sales";
 
 const PRODUCTS_API =
-  "http://localhost:5000/api/products";
+  "https://inventry-management-system-k9a5.onrender.com/api/products";
 
 const SERVER_URL =
-  "http://localhost:5000";
+  "https://inventry-management-system-k9a5.onrender.com";
 
 
 /* =========================================================

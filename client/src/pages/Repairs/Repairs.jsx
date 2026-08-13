@@ -25,7 +25,7 @@ import {
 import "./Repairs.css";
 
 const API =
-  "http://localhost:5000/api/repairs";
+  "https://inventry-management-system-k9a5.onrender.com/api/repairs";
 
 const emptyForm = {
   CustomerID: "",
@@ -135,9 +135,9 @@ function Repairs() {
   const loadCustomers = async () => {
     try {
       const response =
-        await fetch(
-          "http://localhost:5000/api/customers"
-        );
+       await fetch(
+  "https://inventry-management-system-k9a5.onrender.com/api/customers"
+);
 
       const data =
         await response.json();
