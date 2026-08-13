@@ -1,5 +1,5 @@
 const API =
-  "http://localhost:5000/api/inventory";
+  "https://inventry-management-system-k9a5.onrender.com/api/inventory";
 
 // =====================================================
 // GET INVENTORY

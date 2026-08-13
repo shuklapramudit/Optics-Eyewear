@@ -22,7 +22,8 @@ import {
 
 import "./Payments.css";
 
-const API = "http://localhost:5000/api/payments";
+const API =
+  "https://inventry-management-system-k9a5.onrender.com/api/payments";
 
 const money = (value) =>
   Number(value || 0).toLocaleString("en-IN", {

@@ -17,7 +17,8 @@ import {
 
 import "./EyeTesting.css";
 
-const API = "http://localhost:5000/api/eye-tests";
+const API =
+  "https://inventry-management-system-k9a5.onrender.com/api/eye-tests";
 
 const emptyForm = {
   CustomerID: "",

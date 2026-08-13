@@ -24,7 +24,8 @@ import {
 
 import "./Orders.css";
 
-const API = "http://localhost:5000/api/orders";
+const API =
+  "https://inventry-management-system-k9a5.onrender.com/api/orders";
 
 const emptyForm = {
   CustomerID: "",
