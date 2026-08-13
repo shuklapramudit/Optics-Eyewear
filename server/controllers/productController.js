@@ -7,11 +7,38 @@ import path from "path";
 // =====================================================
 
 const getImageUrl = (filename) => {
-  return `/uploads/${filename}`;
+  if (!filename) {
+    return null;
+  }
+
+  const value = String(filename).trim();
+
+  if (!value) {
+    return null;
+  }
+
+  if (
+    value.startsWith("http://") ||
+    value.startsWith("https://") ||
+    value.startsWith("data:")
+  ) {
+    return value;
+  }
+
+  if (value.startsWith("/uploads/")) {
+    return value;
+  }
+
+  if (value.startsWith("uploads/")) {
+    return `/${value}`;
+  }
+
+  return `/uploads/${value}`;
 };
 
+
 // =====================================================
-// PRODUCT TYPE NORMALIZER
+// NORMALIZE PRODUCT TYPE
 // =====================================================
 
 const normalizeProductType = (value) => {
@@ -31,17 +58,17 @@ const normalizeProductType = (value) => {
     "Contact Lenses": "Contact Lens",
     "Contact Lens": "Contact Lens",
 
-    "Sunglasses": "Sunglasses",
+    Sunglasses: "Sunglasses",
 
-    "Frame": "Frame",
-    "Lens": "Lens",
+    Frame: "Frame",
+    Lens: "Lens",
 
-    "Accessory": "Accessory",
-    "Accessories": "Accessory",
+    Accessory: "Accessory",
+    Accessories: "Accessory",
 
     "Lens Care": "Accessory",
 
-    "Other": "Other",
+    Other: "Other",
   };
 
   return (
@@ -49,6 +76,7 @@ const normalizeProductType = (value) => {
     productType
   );
 };
+
 
 // =====================================================
 // PARSE IMAGES
@@ -90,13 +118,13 @@ const parseImages = (images) => {
   return [];
 };
 
+
 // =====================================================
 // NORMALIZE IMAGE LIST
 // =====================================================
 
 const normalizeImageList = (images) => {
-  const parsedImages =
-    parseImages(images);
+  const parsedImages = parseImages(images);
 
   const finalImages = [];
 
@@ -122,22 +150,17 @@ const normalizeImageList = (images) => {
     }
   }
 
-  return [...new Set(finalImages)];
+  return [
+    ...new Set(finalImages),
+  ];
 };
+
 
 // =====================================================
 // GET QUANTITY
 // =====================================================
 
 const getQuantity = (body) => {
-  if (
-    body.Quantity !== undefined &&
-    body.Quantity !== null &&
-    body.Quantity !== ""
-  ) {
-    return Number(body.Quantity) || 0;
-  }
-
   if (
     body.StockQuantity !== undefined &&
     body.StockQuantity !== null &&
@@ -149,15 +172,28 @@ const getQuantity = (body) => {
   }
 
   if (
+    body.Quantity !== undefined &&
+    body.Quantity !== null &&
+    body.Quantity !== ""
+  ) {
+    return (
+      Number(body.Quantity) || 0
+    );
+  }
+
+  if (
     body.Stock !== undefined &&
     body.Stock !== null &&
     body.Stock !== ""
   ) {
-    return Number(body.Stock) || 0;
+    return (
+      Number(body.Stock) || 0
+    );
   }
 
   return 0;
 };
+
 
 // =====================================================
 // GET PRICE
@@ -165,8 +201,27 @@ const getQuantity = (body) => {
 
 const getPrice = (body) => {
   if (
-    body.LastPurchasePrice !==
-      undefined &&
+    body.Price !== undefined &&
+    body.Price !== null &&
+    body.Price !== ""
+  ) {
+    return (
+      Number(body.Price) || 0
+    );
+  }
+
+  if (
+    body.SellingPrice !== undefined &&
+    body.SellingPrice !== null &&
+    body.SellingPrice !== ""
+  ) {
+    return (
+      Number(body.SellingPrice) || 0
+    );
+  }
+
+  if (
+    body.LastPurchasePrice !== undefined &&
     body.LastPurchasePrice !== null &&
     body.LastPurchasePrice !== ""
   ) {
@@ -175,134 +230,98 @@ const getPrice = (body) => {
     );
   }
 
-  if (
-    body.Price !== undefined &&
-    body.Price !== null &&
-    body.Price !== ""
-  ) {
-    return Number(body.Price) || 0;
-  }
-
   return 0;
 };
 
+
 // =====================================================
-// RESOLVE CATEGORY
+// CHECK COLUMN EXISTS
 // =====================================================
 
-const resolveCategoryId = async (
+const hasColumn = async (
   connection,
-  categoryID,
-  categoryName
+  tableName,
+  columnName
 ) => {
-  if (
-    categoryName &&
-    String(categoryName).trim()
-  ) {
-    const name =
-      String(categoryName).trim();
+  const [rows] =
+    await connection.query(
+      `
+        SELECT COUNT(*) AS total
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = ?
+          AND COLUMN_NAME = ?
+      `,
+      [
+        tableName,
+        columnName,
+      ]
+    );
 
-    const [existing] =
-      await connection.query(
-        `
-        SELECT
-          CategoryID
-
-        FROM product_categories
-
-        WHERE
-          LOWER(CategoryName) =
-          LOWER(?)
-
-        LIMIT 1
-        `,
-        [name]
-      );
-
-    if (existing.length > 0) {
-      return existing[0].CategoryID;
-    }
-
-    const [result] =
-      await connection.query(
-        `
-        INSERT INTO product_categories
-        (
-          CategoryName
-        )
-
-        VALUES
-        (?)
-        `,
-        [name]
-      );
-
-    return result.insertId;
-  }
-
-  return categoryID
-    ? Number(categoryID)
-    : null;
+  return (
+    Number(
+      rows[0]?.total
+    ) > 0
+  );
 };
 
+
 // =====================================================
-// RESOLVE BRAND
+// CHECK TABLE EXISTS
 // =====================================================
 
-const resolveBrandId = async (
+const hasTable = async (
   connection,
-  brandID,
-  brandName
+  tableName
 ) => {
-  if (
-    brandName &&
-    String(brandName).trim()
-  ) {
-    const name =
-      String(brandName).trim();
+  const [rows] =
+    await connection.query(
+      `
+        SELECT COUNT(*) AS total
+        FROM INFORMATION_SCHEMA.TABLES
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = ?
+      `,
+      [tableName]
+    );
 
-    const [existing] =
-      await connection.query(
-        `
-        SELECT
-          BrandID
-
-        FROM brands
-
-        WHERE
-          LOWER(BrandName) =
-          LOWER(?)
-
-        LIMIT 1
-        `,
-        [name]
-      );
-
-    if (existing.length > 0) {
-      return existing[0].BrandID;
-    }
-
-    const [result] =
-      await connection.query(
-        `
-        INSERT INTO brands
-        (
-          BrandName
-        )
-
-        VALUES
-        (?)
-        `,
-        [name]
-      );
-
-    return result.insertId;
-  }
-
-  return brandID
-    ? Number(brandID)
-    : null;
+  return (
+    Number(
+      rows[0]?.total
+    ) > 0
+  );
 };
+
+
+// =====================================================
+// GENERATE PRODUCT CODE
+// =====================================================
+
+const generateProductCode = async (
+  connection
+) => {
+  const [rows] =
+    await connection.query(
+      `
+        SELECT ProductID
+        FROM products
+        ORDER BY ProductID DESC
+        LIMIT 1
+      `
+    );
+
+  const nextId =
+    rows.length > 0
+      ? Number(
+          rows[0].ProductID
+        ) + 1
+      : 1;
+
+  return `PRD-${String(
+    nextId
+  ).padStart(5, "0")}`;
+};
+
 
 // =====================================================
 // DELETE PHYSICAL IMAGE
@@ -316,26 +335,32 @@ const deletePhysicalImage = (
   }
 
   try {
+    const value =
+      String(imageURL);
+
     let filename = "";
 
     if (
-      imageURL.startsWith(
+      value.startsWith(
         "/uploads/"
       )
     ) {
       filename =
-        path.basename(imageURL);
+        path.basename(value);
     } else if (
-      imageURL.includes(
+      value.includes(
         "/uploads/"
       )
     ) {
       filename =
         path.basename(
-          imageURL.split(
+          value.split(
             "/uploads/"
           )[1]
         );
+    } else {
+      filename =
+        path.basename(value);
     }
 
     if (!filename) {
@@ -356,71 +381,84 @@ const deletePhysicalImage = (
     }
   } catch (error) {
     console.error(
-      "Physical image delete error:",
+      "Physical Image Delete Error:",
       error.message
     );
   }
 };
 
-// =====================================================
-// GENERATE PRODUCT CODE
-// =====================================================
-
-const generateProductCode =
-  async (connection) => {
-    const [rows] =
-      await connection.query(
-        `
-        SELECT
-          ProductID
-
-        FROM products
-
-        ORDER BY
-          ProductID DESC
-
-        LIMIT 1
-        `
-      );
-
-    const nextId =
-      rows.length > 0
-        ? Number(
-            rows[0].ProductID
-          ) + 1
-        : 1;
-
-    return `PRD-${String(
-      nextId
-    ).padStart(5, "0")}`;
-  };
 
 // =====================================================
 // GET ALL PRODUCTS
 // GET /api/products
 // =====================================================
 
-export const getProducts =
-  async (req, res) => {
-    try {
-      const [products] =
-        await pool.query(
-          `
+export const getProducts = async (
+  req,
+  res
+) => {
+  try {
+    const hasForWhom =
+      await hasColumn(
+        pool,
+        "products",
+        "ForWhom"
+      );
+
+    const hasTargetAudience =
+      await hasColumn(
+        pool,
+        "products",
+        "TargetAudience"
+      );
+
+    const hasBarcodeImage =
+      await hasColumn(
+        pool,
+        "products",
+        "BarcodeImageURL"
+      );
+
+    let genderSQL =
+      "NULL AS ForWhom";
+
+    if (hasForWhom) {
+      genderSQL =
+        "p.ForWhom AS ForWhom";
+    } else if (
+      hasTargetAudience
+    ) {
+      genderSQL =
+        "p.TargetAudience AS ForWhom";
+    }
+
+    let barcodeSQL =
+      "NULL AS BarcodeImageURL";
+
+    if (hasBarcodeImage) {
+      barcodeSQL =
+        "p.BarcodeImageURL AS BarcodeImageURL";
+    }
+
+    const [products] =
+      await pool.query(
+        `
           SELECT
             p.ProductID,
             p.ProductCode,
-            p.Barcode,
             p.ProductName,
-
-            p.CategoryID,
-            p.BrandID,
-
             p.ProductType,
-            p.Description,
-            p.ModelNumber,
-            p.Color,
-            p.Size,
+
+            ${genderSQL},
+
             p.ImageURL,
+
+            ${barcodeSQL},
+
+            COALESCE(
+              i.Quantity,
+              0
+            ) AS StockQuantity,
 
             COALESCE(
               i.Quantity,
@@ -428,13 +466,14 @@ export const getProducts =
             ) AS Stock,
 
             COALESCE(
+              i.Quantity,
+              0
+            ) AS Quantity,
+
+            COALESCE(
               i.LastPurchasePrice,
               0
-            ) AS Price,
-
-            pc.CategoryName,
-
-            b.BrandName
+            ) AS Price
 
           FROM products p
 
@@ -442,88 +481,102 @@ export const getProducts =
             ON i.ProductID =
                p.ProductID
 
-          LEFT JOIN product_categories pc
-            ON pc.CategoryID =
-               p.CategoryID
-
-          LEFT JOIN brands b
-            ON b.BrandID =
-               p.BrandID
-
           ORDER BY
             p.ProductID DESC
-          `
-        );
+        `
+      );
 
-      for (
-        const product of products
-      ) {
-        const [images] =
-          await pool.query(
-            `
-            SELECT
-              ImageID,
-              ImageURL,
-              SortOrder
+    // =================================================
+    // PRODUCT IMAGES
+    // =================================================
 
-            FROM product_images
+    const imageTableExists =
+      await hasTable(
+        pool,
+        "product_images"
+      );
 
-            WHERE
-              ProductID = ?
+    for (
+      const product of products
+    ) {
+      product.Images = [];
 
-            ORDER BY
-              SortOrder ASC,
-              ImageID ASC
-            `,
-            [product.ProductID]
-          );
-
-        product.Images =
-          images;
-
-        if (
-          images.length === 0 &&
-          product.ImageURL
-        ) {
-          const fallbackImages =
-            normalizeImageList(
-              product.ImageURL
+      if (imageTableExists) {
+        try {
+          const [
+            images,
+          ] =
+            await pool.query(
+              `
+                SELECT
+                  ImageID,
+                  ImageURL,
+                  SortOrder
+                FROM product_images
+                WHERE ProductID = ?
+                ORDER BY
+                  SortOrder ASC,
+                  ImageID ASC
+              `,
+              [
+                product.ProductID,
+              ]
             );
 
           product.Images =
-            fallbackImages.map(
-              (url, index) => ({
-                ImageID: null,
-                ImageURL: url,
-                SortOrder: index,
-              })
-            );
+            images;
+        } catch (error) {
+          console.warn(
+            "Product images load skipped:",
+            error.message
+          );
         }
       }
 
-      return res.status(200).json({
-        success: true,
-        count: products.length,
-        products,
-      });
-    } catch (error) {
-      console.error(
-        "Get Products Error:",
-        error
-      );
-
-      return res.status(500).json({
-        success: false,
-        message:
-          error.sqlMessage ||
-          error.message ||
-          "Unable to load products.",
-        error:
-          error.sqlMessage ||
-          error.message,
-      });
+      if (
+        product.Images.length === 0 &&
+        product.ImageURL
+      ) {
+        product.Images =
+          normalizeImageList(
+            product.ImageURL
+          ).map(
+            (
+              url,
+              index
+            ) => ({
+              ImageID: null,
+              ImageURL: url,
+              SortOrder: index,
+            })
+          );
+      }
     }
-  };
+
+    return res.status(200).json({
+      success: true,
+      count: products.length,
+      products,
+    });
+  } catch (error) {
+    console.error(
+      "Get Products Error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        error.sqlMessage ||
+        error.message ||
+        "Unable to load products.",
+      error:
+        error.sqlMessage ||
+        error.message,
+    });
+  }
+};
+
 
 // =====================================================
 // GET SINGLE PRODUCT
@@ -531,68 +584,103 @@ export const getProducts =
 // =====================================================
 
 export const getProductById =
-  async (req, res) => {
+  async (
+    req,
+    res
+  ) => {
     try {
-      const { id } =
-        req.params;
+      const {
+        id,
+      } = req.params;
 
-      const [products] =
+      const hasForWhom =
+        await hasColumn(
+          pool,
+          "products",
+          "ForWhom"
+        );
+
+      const hasTargetAudience =
+        await hasColumn(
+          pool,
+          "products",
+          "TargetAudience"
+        );
+
+      const hasBarcodeImage =
+        await hasColumn(
+          pool,
+          "products",
+          "BarcodeImageURL"
+        );
+
+      let genderSQL =
+        "NULL AS ForWhom";
+
+      if (hasForWhom) {
+        genderSQL =
+          "p.ForWhom AS ForWhom";
+      } else if (
+        hasTargetAudience
+      ) {
+        genderSQL =
+          "p.TargetAudience AS ForWhom";
+      }
+
+      let barcodeSQL =
+        "NULL AS BarcodeImageURL";
+
+      if (hasBarcodeImage) {
+        barcodeSQL =
+          "p.BarcodeImageURL AS BarcodeImageURL";
+      }
+
+      const [rows] =
         await pool.query(
           `
-          SELECT
-            p.ProductID,
-            p.ProductCode,
-            p.Barcode,
-            p.ProductName,
+            SELECT
+              p.ProductID,
+              p.ProductCode,
+              p.ProductName,
+              p.ProductType,
 
-            p.CategoryID,
-            p.BrandID,
+              ${genderSQL},
 
-            p.ProductType,
-            p.Description,
-            p.ModelNumber,
-            p.Color,
-            p.Size,
-            p.ImageURL,
+              p.ImageURL,
 
-            COALESCE(
-              i.Quantity,
-              0
-            ) AS Stock,
+              ${barcodeSQL},
 
-            COALESCE(
-              i.LastPurchasePrice,
-              0
-            ) AS Price,
+              COALESCE(
+                i.Quantity,
+                0
+              ) AS StockQuantity,
 
-            pc.CategoryName,
+              COALESCE(
+                i.Quantity,
+                0
+              ) AS Stock,
 
-            b.BrandName
+              COALESCE(
+                i.LastPurchasePrice,
+                0
+              ) AS Price
 
-          FROM products p
+            FROM products p
 
-          LEFT JOIN inventory i
-            ON i.ProductID =
-               p.ProductID
+            LEFT JOIN inventory i
+              ON i.ProductID =
+                 p.ProductID
 
-          LEFT JOIN product_categories pc
-            ON pc.CategoryID =
-               p.CategoryID
+            WHERE
+              p.ProductID = ?
 
-          LEFT JOIN brands b
-            ON b.BrandID =
-               p.BrandID
-
-          WHERE
-            p.ProductID = ?
-
-          LIMIT 1
+            LIMIT 1
           `,
           [id]
         );
 
       if (
-        products.length === 0
+        rows.length === 0
       ) {
         return res.status(404).json({
           success: false,
@@ -602,43 +690,55 @@ export const getProductById =
       }
 
       const product =
-        products[0];
+        rows[0];
 
-      const [images] =
-        await pool.query(
-          `
-          SELECT
-            ImageID,
-            ImageURL,
-            SortOrder
-
-          FROM product_images
-
-          WHERE
-            ProductID = ?
-
-          ORDER BY
-            SortOrder ASC,
-            ImageID ASC
-          `,
-          [id]
+      const imageTableExists =
+        await hasTable(
+          pool,
+          "product_images"
         );
 
-      product.Images =
-        images;
+      if (imageTableExists) {
+        try {
+          const [
+            images,
+          ] =
+            await pool.query(
+              `
+                SELECT
+                  ImageID,
+                  ImageURL,
+                  SortOrder
+                FROM product_images
+                WHERE ProductID = ?
+                ORDER BY
+                  SortOrder ASC,
+                  ImageID ASC
+              `,
+              [id]
+            );
+
+          product.Images =
+            images;
+        } catch {
+          product.Images = [];
+        }
+      } else {
+        product.Images = [];
+      }
 
       if (
-        images.length === 0 &&
+        product.Images.length === 0 &&
         product.ImageURL
       ) {
-        const fallbackImages =
+        product.Images =
           normalizeImageList(
             product.ImageURL
-          );
-
-        product.Images =
-          fallbackImages.map(
-            (url, index) => ({
+          ).map(
+            (
+              url,
+              index
+            ) => ({
               ImageID: null,
               ImageURL: url,
               SortOrder: index,
@@ -652,7 +752,7 @@ export const getProductById =
       });
     } catch (error) {
       console.error(
-        "Get Product Error:",
+        "Get Product By ID Error:",
         error
       );
 
@@ -669,91 +769,6 @@ export const getProductById =
     }
   };
 
-// =====================================================
-// GET CATEGORIES
-// GET /api/products/categories
-// =====================================================
-
-export const getProductCategories =
-  async (req, res) => {
-    try {
-      const [categories] =
-        await pool.query(
-          `
-          SELECT
-            CategoryID,
-            CategoryName
-
-          FROM product_categories
-
-          ORDER BY
-            CategoryID ASC
-          `
-        );
-
-      return res.status(200).json({
-        success: true,
-        categories,
-      });
-    } catch (error) {
-      console.error(
-        "Get Categories Error:",
-        error
-      );
-
-      return res.status(500).json({
-        success: false,
-        message:
-          error.message ||
-          "Unable to load categories.",
-        error:
-          error.message,
-      });
-    }
-  };
-
-// =====================================================
-// GET BRANDS
-// GET /api/products/brands
-// =====================================================
-
-export const getProductBrands =
-  async (req, res) => {
-    try {
-      const [brands] =
-        await pool.query(
-          `
-          SELECT
-            BrandID,
-            BrandName
-
-          FROM brands
-
-          ORDER BY
-            BrandID ASC
-          `
-        );
-
-      return res.status(200).json({
-        success: true,
-        brands,
-      });
-    } catch (error) {
-      console.error(
-        "Get Brands Error:",
-        error
-      );
-
-      return res.status(500).json({
-        success: false,
-        message:
-          error.message ||
-          "Unable to load brands.",
-        error:
-          error.message,
-      });
-    }
-  };
 
 // =====================================================
 // UPLOAD SINGLE PRODUCT IMAGE
@@ -761,7 +776,10 @@ export const getProductBrands =
 // =====================================================
 
 export const uploadProductImage =
-  async (req, res) => {
+  async (
+    req,
+    res
+  ) => {
     try {
       if (!req.file) {
         return res.status(400).json({
@@ -771,43 +789,33 @@ export const uploadProductImage =
         });
       }
 
-      const extension =
-        path.extname(
-          req.file.originalname
-        );
-
-      const oldPath =
-        req.file.path;
-
-      const newFilename =
-        `${req.file.filename}${extension}`;
-
-      const newPath =
-        path.join(
-          path.dirname(oldPath),
-          newFilename
-        );
-
-      fs.renameSync(
-        oldPath,
-        newPath
-      );
-
       const imageURL =
         getImageUrl(
-          newFilename
+          req.file.filename
         );
 
       return res.status(200).json({
         success: true,
         message:
           "Image uploaded successfully.",
+
         imageURL,
-        image: imageURL,
+
+        imageUrl:
+          imageURL,
+
+        ImageURL:
+          imageURL,
+
+        url:
+          imageURL,
+
+        image:
+          imageURL,
       });
     } catch (error) {
       console.error(
-        "Upload Image Error:",
+        "Upload Product Image Error:",
         error
       );
 
@@ -822,13 +830,17 @@ export const uploadProductImage =
     }
   };
 
+
 // =====================================================
 // UPLOAD MULTIPLE PRODUCT IMAGES
 // POST /api/products/upload-images
 // =====================================================
 
 export const uploadProductImages =
-  async (req, res) => {
+  async (
+    req,
+    res
+  ) => {
     try {
       if (
         !req.files ||
@@ -846,33 +858,17 @@ export const uploadProductImages =
       for (
         const file of req.files
       ) {
-        const extension =
-          path.extname(
-            file.originalname
+        const imageURL =
+          getImageUrl(
+            file.filename
           );
-
-        const oldPath =
-          file.path;
-
-        const newFilename =
-          `${file.filename}${extension}`;
-
-        const newPath =
-          path.join(
-            path.dirname(oldPath),
-            newFilename
-          );
-
-        fs.renameSync(
-          oldPath,
-          newPath
-        );
 
         images.push({
-          imageURL:
-            getImageUrl(
-              newFilename
-            ),
+          imageURL,
+          ImageURL:
+            imageURL,
+          url:
+            imageURL,
           originalName:
             file.originalname,
         });
@@ -888,7 +884,7 @@ export const uploadProductImages =
       });
     } catch (error) {
       console.error(
-        "Upload Multiple Images Error:",
+        "Upload Multiple Product Images Error:",
         error
       );
 
@@ -903,36 +899,30 @@ export const uploadProductImages =
     }
   };
 
+
 // =====================================================
 // CREATE PRODUCT
 // POST /api/products
 // =====================================================
 
 export const createProduct =
-  async (req, res) => {
+  async (
+    req,
+    res
+  ) => {
     const connection =
       await pool.getConnection();
 
     try {
       const {
-        ProductCode,
-        Barcode,
         ProductName,
-
-        CategoryID,
-        CategoryName,
-
-        BrandID,
-        BrandName,
-
         ProductType,
-        Description,
-        ModelNumber,
-        Color,
-        Size,
-
+        ForWhom,
+        TargetAudience,
+        Price,
+        StockQuantity,
         ImageURL,
-        Images,
+        BarcodeImageURL,
       } = req.body;
 
       // =================================================
@@ -941,12 +931,14 @@ export const createProduct =
 
       if (
         !ProductName ||
-        !String(ProductName).trim()
+        !String(
+          ProductName
+        ).trim()
       ) {
         return res.status(400).json({
           success: false,
           message:
-            "Product name is required.",
+            "Product Name is required.",
         });
       }
 
@@ -955,253 +947,364 @@ export const createProduct =
           ProductType
         );
 
-      if (!normalizedProductType) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Product type is required.",
-        });
-      }
-
-      // =================================================
-      // START TRANSACTION
-      // =================================================
-
-      await connection.beginTransaction();
-
-      // =================================================
-      // CATEGORY
-      // =================================================
-
-      const resolvedCategoryID =
-        await resolveCategoryId(
-          connection,
-          CategoryID,
-          CategoryName
-        );
-
       if (
-        !resolvedCategoryID ||
-        Number.isNaN(
-          Number(resolvedCategoryID)
-        )
+        !normalizedProductType
       ) {
-        await connection.rollback();
-
         return res.status(400).json({
           success: false,
           message:
-            "Valid category is required.",
+            "Product Type is required.",
         });
       }
 
-      // =================================================
-      // BRAND
-      // =================================================
+      const gender =
+        String(
+          ForWhom ||
+          TargetAudience ||
+          ""
+        ).trim();
 
-      const resolvedBrandID =
-        await resolveBrandId(
-          connection,
-          BrandID,
-          BrandName
-        );
+      if (!gender) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "For Whom / Gender is required.",
+        });
+      }
 
-      // =================================================
-      // PRODUCT CODE
-      // =================================================
-
-      const finalProductCode =
-        ProductCode &&
-        String(ProductCode).trim()
-          ? String(ProductCode).trim()
-          : await generateProductCode(
-              connection
-            );
-
-      // =================================================
-      // IMAGES
-      // =================================================
-
-      let imageList =
-        normalizeImageList(
-          Images
-        );
-
-      const primaryImages =
-        normalizeImageList(
-          ImageURL
-        );
-
-      imageList = [
-        ...imageList,
-        ...primaryImages,
-      ];
-
-      imageList = [
-        ...new Set(imageList),
-      ];
-
-      const primaryImage =
-        imageList.length > 0
-          ? imageList[0]
-          : null;
-
-      // =================================================
-      // INVENTORY
-      // =================================================
+      const price =
+        getPrice(req.body);
 
       const quantity =
         getQuantity(req.body);
 
-      const price =
-        getPrice(req.body);
+      if (price < 0) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Price cannot be negative.",
+        });
+      }
+
+      if (quantity < 0) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Stock quantity cannot be negative.",
+        });
+      }
+
+      await connection.beginTransaction();
+
+      // =================================================
+      // CHECK COLUMNS
+      // =================================================
+
+      const hasForWhom =
+        await hasColumn(
+          connection,
+          "products",
+          "ForWhom"
+        );
+
+      const hasTargetAudience =
+        await hasColumn(
+          connection,
+          "products",
+          "TargetAudience"
+        );
+
+      const hasBarcodeImage =
+        await hasColumn(
+          connection,
+          "products",
+          "BarcodeImageURL"
+        );
+
+      const hasPrice =
+        await hasColumn(
+          connection,
+          "products",
+          "Price"
+        );
+
+      // =================================================
+      // AUTOMATIC PRODUCT CODE
+      // =================================================
+
+      const productCode =
+        await generateProductCode(
+          connection
+        );
+
+      // =================================================
+      // PRODUCT IMAGE
+      // =================================================
+
+      const imageList =
+        normalizeImageList(
+          ImageURL
+        );
+
+      const primaryImage =
+        imageList.length > 0
+          ? imageList[0]
+          : ImageURL || null;
+
+      // =================================================
+      // BUILD INSERT
+      // =================================================
+
+      const columns = [
+        "ProductCode",
+        "ProductName",
+        "ProductType",
+        "ImageURL",
+      ];
+
+      const values = [
+        productCode,
+        String(
+          ProductName
+        ).trim(),
+        normalizedProductType,
+        primaryImage,
+      ];
+
+      const placeholders = [
+        "?",
+        "?",
+        "?",
+        "?",
+      ];
+
+      // =================================================
+      // GENDER
+      // =================================================
+
+      if (hasForWhom) {
+        columns.push(
+          "ForWhom"
+        );
+
+        values.push(
+          gender
+        );
+
+        placeholders.push(
+          "?"
+        );
+      } else if (
+        hasTargetAudience
+      ) {
+        columns.push(
+          "TargetAudience"
+        );
+
+        values.push(
+          gender
+        );
+
+        placeholders.push(
+          "?"
+        );
+      }
+
+      // =================================================
+      // BARCODE IMAGE
+      // =================================================
+
+      if (
+        hasBarcodeImage
+      ) {
+        columns.push(
+          "BarcodeImageURL"
+        );
+
+        values.push(
+          BarcodeImageURL ||
+            null
+        );
+
+        placeholders.push(
+          "?"
+        );
+      }
+
+      // =================================================
+      // PRICE
+      // =================================================
+
+      if (hasPrice) {
+        columns.push(
+          "Price"
+        );
+
+        values.push(
+          price
+        );
+
+        placeholders.push(
+          "?"
+        );
+      }
 
       // =================================================
       // INSERT PRODUCT
       // =================================================
 
-      const [productResult] =
+      const [
+        productResult,
+      ] =
         await connection.query(
           `
-          INSERT INTO products
-          (
-            ProductCode,
-            Barcode,
-            ProductName,
-
-            CategoryID,
-            BrandID,
-
-            ProductType,
-            Description,
-            ModelNumber,
-            Color,
-            Size,
-
-            ImageURL
-          )
-
-          VALUES
-          (
-            ?,
-            ?,
-            ?,
-
-            ?,
-            ?,
-
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-
-            ?
-          )
+            INSERT INTO products
+            (
+              ${columns.join(
+                ", "
+              )}
+            )
+            VALUES
+            (
+              ${placeholders.join(
+                ", "
+              )}
+            )
           `,
-          [
-            finalProductCode,
-            Barcode || null,
-            String(ProductName).trim(),
-
-            Number(
-              resolvedCategoryID
-            ),
-
-            resolvedBrandID
-              ? Number(
-                  resolvedBrandID
-                )
-              : null,
-
-            normalizedProductType,
-
-            Description || null,
-            ModelNumber || null,
-            Color || null,
-            Size || null,
-
-            primaryImage,
-          ]
+          values
         );
 
       const productID =
         productResult.insertId;
 
       // =================================================
-      // INSERT INVENTORY
+      // INVENTORY
       // =================================================
 
-      await connection.query(
-        `
-        INSERT INTO inventory
-        (
-          ProductID,
-          Quantity,
-          ReservedQuantity,
-          LastPurchasePrice
-        )
+      const [
+        inventoryRows,
+      ] =
+        await connection.query(
+          `
+            SELECT
+              InventoryID
+            FROM inventory
+            WHERE ProductID = ?
+            LIMIT 1
+          `,
+          [productID]
+        );
 
-        VALUES
-        (
-          ?,
-          ?,
-          ?,
-          ?
-        )
-        `,
-        [
-          productID,
-          quantity,
-          0,
-          price,
-        ]
-      );
-
-      // =================================================
-      // INSERT IMAGES
-      // =================================================
-
-      for (
-        let i = 0;
-        i < imageList.length;
-        i++
+      if (
+        inventoryRows.length === 0
       ) {
         await connection.query(
           `
-          INSERT INTO product_images
-          (
-            ProductID,
-            ImageURL,
-            SortOrder
-          )
-
-          VALUES
-          (
-            ?,
-            ?,
-            ?
-          )
+            INSERT INTO inventory
+            (
+              ProductID,
+              Quantity,
+              ReservedQuantity,
+              LastPurchasePrice
+            )
+            VALUES
+            (
+              ?,
+              ?,
+              0,
+              ?
+            )
           `,
           [
             productID,
-            imageList[i],
-            i,
+            quantity,
+            price,
+          ]
+        );
+      } else {
+        await connection.query(
+          `
+            UPDATE inventory
+            SET
+              Quantity = ?,
+              LastPurchasePrice = ?
+            WHERE ProductID = ?
+          `,
+          [
+            quantity,
+            price,
+            productID,
           ]
         );
       }
 
       // =================================================
-      // COMMIT
+      // PRODUCT IMAGES TABLE
       // =================================================
+
+      const imageTableExists =
+        await hasTable(
+          connection,
+          "product_images"
+        );
+
+      if (
+        imageTableExists &&
+        imageList.length > 0
+      ) {
+        for (
+          let i = 0;
+          i < imageList.length;
+          i++
+        ) {
+          try {
+            await connection.query(
+              `
+                INSERT INTO product_images
+                (
+                  ProductID,
+                  ImageURL,
+                  SortOrder
+                )
+                VALUES
+                (
+                  ?,
+                  ?,
+                  ?
+                )
+              `,
+              [
+                productID,
+                imageList[i],
+                i,
+              ]
+            );
+          } catch (error) {
+            console.warn(
+              "Product image insert skipped:",
+              error.message
+            );
+          }
+        }
+      }
 
       await connection.commit();
 
       return res.status(201).json({
         success: true,
+
         message:
-          "Product created successfully.",
+          "Product added successfully.",
+
         productID,
+
+        ProductID:
+          productID,
+
+        productCode,
+
+        ProductCode:
+          productCode,
       });
     } catch (error) {
       await connection.rollback();
@@ -1220,6 +1323,7 @@ export const createProduct =
         error:
           error.sqlMessage ||
           error.message,
+
         code:
           error.code || null,
       });
@@ -1228,39 +1332,34 @@ export const createProduct =
     }
   };
 
+
 // =====================================================
 // UPDATE PRODUCT
 // PUT /api/products/:id
 // =====================================================
 
 export const updateProduct =
-  async (req, res) => {
+  async (
+    req,
+    res
+  ) => {
     const connection =
       await pool.getConnection();
 
     try {
-      const { id } =
-        req.params;
+      const {
+        id,
+      } = req.params;
 
       const {
-        ProductCode,
-        Barcode,
         ProductName,
-
-        CategoryID,
-        CategoryName,
-
-        BrandID,
-        BrandName,
-
         ProductType,
-        Description,
-        ModelNumber,
-        Color,
-        Size,
-
+        ForWhom,
+        TargetAudience,
+        Price,
+        StockQuantity,
         ImageURL,
-        Images,
+        BarcodeImageURL,
       } = req.body;
 
       // =================================================
@@ -1269,12 +1368,14 @@ export const updateProduct =
 
       if (
         !ProductName ||
-        !String(ProductName).trim()
+        !String(
+          ProductName
+        ).trim()
       ) {
         return res.status(400).json({
           success: false,
           message:
-            "Product name is required.",
+            "Product Name is required.",
         });
       }
 
@@ -1283,17 +1384,47 @@ export const updateProduct =
           ProductType
         );
 
-      if (!normalizedProductType) {
+      if (
+        !normalizedProductType
+      ) {
         return res.status(400).json({
           success: false,
           message:
-            "Product type is required.",
+            "Product Type is required.",
         });
       }
 
-      // =================================================
-      // START TRANSACTION
-      // =================================================
+      const gender =
+        String(
+          ForWhom ||
+          TargetAudience ||
+          ""
+        ).trim();
+
+      if (!gender) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "For Whom / Gender is required.",
+        });
+      }
+
+      const price =
+        getPrice(req.body);
+
+      const quantity =
+        getQuantity(req.body);
+
+      if (
+        price < 0 ||
+        quantity < 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Price and stock cannot be negative.",
+        });
+      }
 
       await connection.beginTransaction();
 
@@ -1301,25 +1432,24 @@ export const updateProduct =
       // CHECK PRODUCT
       // =================================================
 
-      const [existingProduct] =
+      const [
+        existingRows,
+      ] =
         await connection.query(
           `
-          SELECT
-            ProductID,
-            ProductCode
-
-          FROM products
-
-          WHERE
-            ProductID = ?
-
-          LIMIT 1
+            SELECT
+              ProductID,
+              ProductCode,
+              ImageURL
+            FROM products
+            WHERE ProductID = ?
+            LIMIT 1
           `,
           [id]
         );
 
       if (
-        existingProduct.length === 0
+        existingRows.length === 0
       ) {
         await connection.rollback();
 
@@ -1331,251 +1461,187 @@ export const updateProduct =
       }
 
       // =================================================
-      // CATEGORY
+      // CHECK COLUMNS
       // =================================================
 
-      const resolvedCategoryID =
-        await resolveCategoryId(
+      const hasForWhom =
+        await hasColumn(
           connection,
-          CategoryID,
-          CategoryName
+          "products",
+          "ForWhom"
         );
 
-      if (
-        !resolvedCategoryID ||
-        Number.isNaN(
-          Number(resolvedCategoryID)
-        )
-      ) {
-        await connection.rollback();
-
-        return res.status(400).json({
-          success: false,
-          message:
-            "Valid category is required.",
-        });
-      }
-
-      // =================================================
-      // BRAND
-      // =================================================
-
-      const resolvedBrandID =
-        await resolveBrandId(
+      const hasTargetAudience =
+        await hasColumn(
           connection,
-          BrandID,
-          BrandName
+          "products",
+          "TargetAudience"
+        );
+
+      const hasBarcodeImage =
+        await hasColumn(
+          connection,
+          "products",
+          "BarcodeImageURL"
+        );
+
+      const hasPrice =
+        await hasColumn(
+          connection,
+          "products",
+          "Price"
         );
 
       // =================================================
-      // PRODUCT CODE
+      // BUILD UPDATE
       // =================================================
 
-      const finalProductCode =
-        ProductCode &&
-        String(ProductCode).trim()
-          ? String(ProductCode).trim()
-          : existingProduct[0]
-              .ProductCode;
-
-      // =================================================
-      // IMAGE DATA
-      // =================================================
-
-      let imageList =
-        normalizeImageList(
-          Images
-        );
-
-      const primaryImages =
-        normalizeImageList(
-          ImageURL
-        );
-
-      imageList = [
-        ...imageList,
-        ...primaryImages,
+      const updateParts = [
+        "ProductName = ?",
+        "ProductType = ?",
       ];
 
-      imageList = [
-        ...new Set(imageList),
+      const values = [
+        String(
+          ProductName
+        ).trim(),
+
+        normalizedProductType,
       ];
 
       // =================================================
-      // GET EXISTING IMAGES
+      // GENDER
       // =================================================
 
-      const [existingImages] =
-        await connection.query(
-          `
-          SELECT
-            ImageID,
-            ImageURL,
-            SortOrder
-
-          FROM product_images
-
-          WHERE
-            ProductID = ?
-
-          ORDER BY
-            SortOrder ASC,
-            ImageID ASC
-          `,
-          [id]
+      if (hasForWhom) {
+        updateParts.push(
+          "ForWhom = ?"
         );
 
-      // =================================================
-      // PRIMARY IMAGE
-      // =================================================
-
-      let primaryImage = null;
-
-      if (
-        imageList.length > 0
-      ) {
-        primaryImage =
-          imageList[0];
+        values.push(
+          gender
+        );
       } else if (
-        existingImages.length > 0
+        hasTargetAudience
       ) {
-        primaryImage =
-          existingImages[0]
-            .ImageURL;
+        updateParts.push(
+          "TargetAudience = ?"
+        );
+
+        values.push(
+          gender
+        );
       }
 
       // =================================================
-      // UPDATE PRODUCT
+      // PRODUCT IMAGE
       // =================================================
 
-      await connection.query(
-        `
-        UPDATE products
+      updateParts.push(
+        "ImageURL = ?"
+      );
 
-        SET
-          ProductCode = ?,
-          Barcode = ?,
-          ProductName = ?,
-
-          CategoryID = ?,
-          BrandID = ?,
-
-          ProductType = ?,
-          Description = ?,
-          ModelNumber = ?,
-          Color = ?,
-          Size = ?,
-
-          ImageURL = ?
-
-        WHERE
-          ProductID = ?
-        `,
-        [
-          finalProductCode,
-          Barcode || null,
-          String(ProductName).trim(),
-
-          Number(
-            resolvedCategoryID
-          ),
-
-          resolvedBrandID
-            ? Number(
-                resolvedBrandID
-              )
-            : null,
-
-          normalizedProductType,
-
-          Description || null,
-          ModelNumber || null,
-          Color || null,
-          Size || null,
-
-          primaryImage,
-
-          id,
-        ]
+      values.push(
+        ImageURL || null
       );
 
       // =================================================
-      // INVENTORY VALUES
+      // BARCODE IMAGE
       // =================================================
 
-      const quantity =
-        getQuantity(req.body);
+      if (
+        hasBarcodeImage
+      ) {
+        updateParts.push(
+          "BarcodeImageURL = ?"
+        );
 
-      const price =
-        getPrice(req.body);
+        values.push(
+          BarcodeImageURL ||
+            null
+        );
+      }
 
       // =================================================
-      // CHECK INVENTORY
+      // PRICE
       // =================================================
 
-      const [inventoryRows] =
+      if (hasPrice) {
+        updateParts.push(
+          "Price = ?"
+        );
+
+        values.push(
+          price
+        );
+      }
+
+      values.push(id);
+
+      await connection.query(
+        `
+          UPDATE products
+          SET
+            ${updateParts.join(
+              ", "
+            )}
+          WHERE ProductID = ?
+        `,
+        values
+      );
+
+      // =================================================
+      // UPDATE INVENTORY
+      // =================================================
+
+      const [
+        inventoryRows,
+      ] =
         await connection.query(
           `
-          SELECT
-            InventoryID
-
-          FROM inventory
-
-          WHERE
-            ProductID = ?
-
-          LIMIT 1
+            SELECT
+              InventoryID
+            FROM inventory
+            WHERE ProductID = ?
+            LIMIT 1
           `,
           [id]
         );
-
-      // =================================================
-      // CREATE INVENTORY
-      // =====================================================
 
       if (
         inventoryRows.length === 0
       ) {
         await connection.query(
           `
-          INSERT INTO inventory
-          (
-            ProductID,
-            Quantity,
-            ReservedQuantity,
-            LastPurchasePrice
-          )
-
-          VALUES
-          (
-            ?,
-            ?,
-            ?,
-            ?
-          )
+            INSERT INTO inventory
+            (
+              ProductID,
+              Quantity,
+              ReservedQuantity,
+              LastPurchasePrice
+            )
+            VALUES
+            (
+              ?,
+              ?,
+              0,
+              ?
+            )
           `,
           [
             id,
             quantity,
-            0,
             price,
           ]
         );
       } else {
-        // =================================================
-        // UPDATE INVENTORY
-        // =================================================
-
         await connection.query(
           `
-          UPDATE inventory
-
-          SET
-            Quantity = ?,
-            LastPurchasePrice = ?
-
-          WHERE
-            ProductID = ?
+            UPDATE inventory
+            SET
+              Quantity = ?,
+              LastPurchasePrice = ?
+            WHERE ProductID = ?
           `,
           [
             quantity,
@@ -1584,88 +1650,6 @@ export const updateProduct =
           ]
         );
       }
-
-      // =================================================
-      // ADD NEW IMAGES
-      // =================================================
-
-      if (
-        imageList.length > 0
-      ) {
-        const existingURLSet =
-          new Set(
-            existingImages.map(
-              (image) =>
-                image.ImageURL
-            )
-          );
-
-        const [sortRows] =
-          await connection.query(
-            `
-            SELECT
-              COALESCE(
-                MAX(SortOrder),
-                -1
-              ) AS MaxSort
-
-            FROM product_images
-
-            WHERE
-              ProductID = ?
-            `,
-            [id]
-          );
-
-        let sortOrder =
-          Number(
-            sortRows[0].MaxSort
-          ) + 1;
-
-        for (
-          const imageURL of
-          imageList
-        ) {
-          if (
-            !existingURLSet.has(
-              imageURL
-            )
-          ) {
-            await connection.query(
-              `
-              INSERT INTO product_images
-              (
-                ProductID,
-                ImageURL,
-                SortOrder
-              )
-
-              VALUES
-              (
-                ?,
-                ?,
-                ?
-              )
-              `,
-              [
-                id,
-                imageURL,
-                sortOrder,
-              ]
-            );
-
-            sortOrder++;
-
-            existingURLSet.add(
-              imageURL
-            );
-          }
-        }
-      }
-
-      // =================================================
-      // COMMIT
-      // =================================================
 
       await connection.commit();
 
@@ -1691,6 +1675,7 @@ export const updateProduct =
         error:
           error.sqlMessage ||
           error.message,
+
         code:
           error.code || null,
       });
@@ -1699,30 +1684,46 @@ export const updateProduct =
     }
   };
 
+
 // =====================================================
 // DELETE SINGLE PRODUCT IMAGE
 // DELETE /api/products/images/:imageId
 // =====================================================
 
 export const deleteProductImage =
-  async (req, res) => {
+  async (
+    req,
+    res
+  ) => {
     try {
       const {
         imageId,
       } = req.params;
 
-      const [rows] =
+      const imageTableExists =
+        await hasTable(
+          pool,
+          "product_images"
+        );
+
+      if (!imageTableExists) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Product image table not found.",
+        });
+      }
+
+      const [
+        rows,
+      ] =
         await pool.query(
           `
-          SELECT
-            ImageURL
-
-          FROM product_images
-
-          WHERE
-            ImageID = ?
-
-          LIMIT 1
+            SELECT
+              ImageURL
+            FROM product_images
+            WHERE ImageID = ?
+            LIMIT 1
           `,
           [imageId]
         );
@@ -1742,10 +1743,8 @@ export const deleteProductImage =
 
       await pool.query(
         `
-        DELETE FROM product_images
-
-        WHERE
-          ImageID = ?
+          DELETE FROM product_images
+          WHERE ImageID = ?
         `,
         [imageId]
       );
@@ -1778,39 +1777,42 @@ export const deleteProductImage =
     }
   };
 
+
 // =====================================================
 // DELETE PRODUCT
 // DELETE /api/products/:id
 // =====================================================
 
 export const deleteProduct =
-  async (req, res) => {
+  async (
+    req,
+    res
+  ) => {
     const connection =
       await pool.getConnection();
 
     try {
-      const { id } =
-        req.params;
+      const {
+        id,
+      } = req.params;
 
       await connection.beginTransaction();
 
       // =================================================
-      // CHECK PRODUCT
+      // GET PRODUCT
       // =================================================
 
-      const [productRows] =
+      const [
+        productRows,
+      ] =
         await connection.query(
           `
-          SELECT
-            ProductID,
-            ImageURL
-
-          FROM products
-
-          WHERE
-            ProductID = ?
-
-          LIMIT 1
+            SELECT
+              ProductID,
+              ImageURL
+            FROM products
+            WHERE ProductID = ?
+            LIMIT 1
           `,
           [id]
         );
@@ -1831,19 +1833,38 @@ export const deleteProduct =
       // GET PRODUCT IMAGES
       // =================================================
 
-      const [images] =
-        await connection.query(
-          `
-          SELECT
-            ImageURL
+      let images = [];
 
-          FROM product_images
-
-          WHERE
-            ProductID = ?
-          `,
-          [id]
+      const imageTableExists =
+        await hasTable(
+          connection,
+          "product_images"
         );
+
+      if (imageTableExists) {
+        try {
+          const [
+            imageRows,
+          ] =
+            await connection.query(
+              `
+                SELECT
+                  ImageURL
+                FROM product_images
+                WHERE ProductID = ?
+              `,
+              [id]
+            );
+
+          images =
+            imageRows;
+        } catch (error) {
+          console.warn(
+            "Product image read skipped:",
+            error.message
+          );
+        }
+      }
 
       // =================================================
       // DELETE INVENTORY
@@ -1851,10 +1872,8 @@ export const deleteProduct =
 
       await connection.query(
         `
-        DELETE FROM inventory
-
-        WHERE
-          ProductID = ?
+          DELETE FROM inventory
+          WHERE ProductID = ?
         `,
         [id]
       );
@@ -1863,27 +1882,34 @@ export const deleteProduct =
       // DELETE PRODUCT IMAGES
       // =================================================
 
-      await connection.query(
-        `
-        DELETE FROM product_images
-
-        WHERE
-          ProductID = ?
-        `,
-        [id]
-      );
+      if (imageTableExists) {
+        try {
+          await connection.query(
+            `
+              DELETE FROM product_images
+              WHERE ProductID = ?
+            `,
+            [id]
+          );
+        } catch (error) {
+          console.warn(
+            "Product image delete skipped:",
+            error.message
+          );
+        }
+      }
 
       // =================================================
       // DELETE PRODUCT
       // =================================================
 
-      const [result] =
+      const [
+        result,
+      ] =
         await connection.query(
           `
-          DELETE FROM products
-
-          WHERE
-            ProductID = ?
+            DELETE FROM products
+            WHERE ProductID = ?
           `,
           [id]
         );
@@ -1900,10 +1926,6 @@ export const deleteProduct =
         });
       }
 
-      // =================================================
-      // COMMIT
-      // =================================================
-
       await connection.commit();
 
       // =================================================
@@ -1918,12 +1940,9 @@ export const deleteProduct =
         );
       }
 
-      // =================================================
-      // DELETE PRIMARY IMAGE
-      // =================================================
-
       const primaryImage =
-        productRows[0].ImageURL;
+        productRows[0]
+          .ImageURL;
 
       if (
         primaryImage &&
@@ -1960,10 +1979,135 @@ export const deleteProduct =
         error:
           error.sqlMessage ||
           error.message,
+
         code:
           error.code || null,
       });
     } finally {
       connection.release();
+    }
+  };
+
+
+// =====================================================
+// GET PRODUCT CATEGORIES
+// GET /api/products/categories
+// =====================================================
+
+export const getProductCategories =
+  async (
+    req,
+    res
+  ) => {
+    try {
+      const tableExists =
+        await hasTable(
+          pool,
+          "product_categories"
+        );
+
+      if (!tableExists) {
+        return res.status(200).json({
+          success: true,
+          categories: [],
+        });
+      }
+
+      const [
+        categories,
+      ] =
+        await pool.query(
+          `
+            SELECT
+              CategoryID,
+              CategoryName
+            FROM product_categories
+            ORDER BY
+              CategoryID ASC
+          `
+        );
+
+      return res.status(200).json({
+        success: true,
+        categories,
+      });
+    } catch (error) {
+      console.error(
+        "Get Product Categories Error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          error.sqlMessage ||
+          error.message ||
+          "Unable to load categories.",
+        error:
+          error.sqlMessage ||
+          error.message,
+      });
+    }
+  };
+
+
+// =====================================================
+// GET PRODUCT BRANDS
+// GET /api/products/brands
+// =====================================================
+
+export const getProductBrands =
+  async (
+    req,
+    res
+  ) => {
+    try {
+      const tableExists =
+        await hasTable(
+          pool,
+          "brands"
+        );
+
+      if (!tableExists) {
+        return res.status(200).json({
+          success: true,
+          brands: [],
+        });
+      }
+
+      const [
+        brands,
+      ] =
+        await pool.query(
+          `
+            SELECT
+              BrandID,
+              BrandName
+            FROM brands
+            ORDER BY
+              BrandID ASC
+          `
+        );
+
+      return res.status(200).json({
+        success: true,
+        brands,
+      });
+    } catch (error) {
+      console.error(
+        "Get Product Brands Error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          error.sqlMessage ||
+          error.message ||
+          "Unable to load brands.",
+        error:
+          error.sqlMessage ||
+          error.message,
+      });
     }
   };

@@ -21,6 +21,7 @@ import {
 
 const router = express.Router();
 
+
 // =====================================================
 // UPLOAD DIRECTORY
 // =====================================================
@@ -31,51 +32,35 @@ const uploadDirectory = path.join(
 );
 
 if (!fs.existsSync(uploadDirectory)) {
-  fs.mkdirSync(
-    uploadDirectory,
-    {
-      recursive: true,
-    }
-  );
+  fs.mkdirSync(uploadDirectory, {
+    recursive: true,
+  });
 }
+
 
 // =====================================================
 // MULTER STORAGE
 // =====================================================
 
 const storage = multer.diskStorage({
-  destination: (
-    req,
-    file,
-    cb
-  ) => {
-    cb(
-      null,
-      uploadDirectory
-    );
+  destination: (req, file, cb) => {
+    cb(null, uploadDirectory);
   },
 
-  filename: (
-    req,
-    file,
-    cb
-  ) => {
-    const extension =
-      path.extname(
-        file.originalname
-      );
+  filename: (req, file, cb) => {
+    const extension = path.extname(
+      file.originalname
+    );
 
     const filename =
       `product-${Date.now()}-${Math.round(
         Math.random() * 1e9
       )}${extension}`;
 
-    cb(
-      null,
-      filename
-    );
+    cb(null, filename);
   },
 });
+
 
 // =====================================================
 // FILE FILTER
@@ -98,10 +83,7 @@ const fileFilter = (
       file.mimetype
     )
   ) {
-    cb(
-      null,
-      true
-    );
+    cb(null, true);
   } else {
     cb(
       new Error(
@@ -110,6 +92,7 @@ const fileFilter = (
     );
   }
 };
+
 
 // =====================================================
 // MULTER
@@ -121,12 +104,11 @@ const upload = multer({
   fileFilter,
 
   limits: {
-    fileSize:
-      5 * 1024 * 1024,
-
+    fileSize: 5 * 1024 * 1024,
     files: 10,
   },
 });
+
 
 // =====================================================
 // GET ALL PRODUCTS
@@ -138,8 +120,10 @@ router.get(
   getProducts
 );
 
+
 // =====================================================
 // GET CATEGORIES
+// IMPORTANT: BEFORE /:id
 // GET /api/products/categories
 // =====================================================
 
@@ -148,8 +132,10 @@ router.get(
   getProductCategories
 );
 
+
 // =====================================================
 // GET BRANDS
+// IMPORTANT: BEFORE /:id
 // GET /api/products/brands
 // =====================================================
 
@@ -157,6 +143,7 @@ router.get(
   "/brands",
   getProductBrands
 );
+
 
 // =====================================================
 // UPLOAD SINGLE IMAGE
@@ -168,6 +155,7 @@ router.post(
   upload.single("image"),
   uploadProductImage
 );
+
 
 // =====================================================
 // UPLOAD MULTIPLE IMAGES
@@ -183,17 +171,18 @@ router.post(
   uploadProductImages
 );
 
+
 // =====================================================
 // DELETE PRODUCT IMAGE
-//
-// IMPORTANT:
-// This MUST come before /:id
+// IMPORTANT: BEFORE /:id
+// DELETE /api/products/images/:imageId
 // =====================================================
 
 router.delete(
   "/images/:imageId",
   deleteProductImage
 );
+
 
 // =====================================================
 // CREATE PRODUCT
@@ -205,6 +194,7 @@ router.post(
   createProduct
 );
 
+
 // =====================================================
 // GET SINGLE PRODUCT
 // GET /api/products/:id
@@ -214,6 +204,7 @@ router.get(
   "/:id",
   getProductById
 );
+
 
 // =====================================================
 // UPDATE PRODUCT
@@ -225,6 +216,7 @@ router.put(
   updateProduct
 );
 
+
 // =====================================================
 // DELETE PRODUCT
 // DELETE /api/products/:id
@@ -234,6 +226,7 @@ router.delete(
   "/:id",
   deleteProduct
 );
+
 
 // =====================================================
 // EXPORT

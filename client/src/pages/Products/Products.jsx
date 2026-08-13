@@ -1,2543 +1,1465 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import pool from "../config/db.js";
 
-import {
-  Package,
-  Plus,
-  Search,
-  Pencil,
-  Trash2,
-  Eye,
-  Glasses,
-  X,
-  RefreshCw,
-  Image as ImageIcon,
-  Upload,
-  Save,
-  Barcode,
-} from "lucide-react";
-
-import "./Products.css";
-
-import API_BASE_URL from "../../services/api.js";
-
-const API = `${API_BASE_URL}/products`;
-
-const SERVER_URL = API_BASE_URL.replace(
-  /\/api\/?$/,
-  ""
-);
-
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
-
-const ALLOWED_IMAGE_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-];
+import fs from "fs";
+import path from "path";
+import crypto from "crypto";
 
 // =====================================================
-// PRODUCTS
+// IMAGE URL HELPER
 // =====================================================
 
-function Products() {
-  // =====================================================
-  // PRODUCTS
-  // =====================================================
+const getImageUrl = (filename) => {
+  if (!filename) {
+    return "";
+  }
 
-  const [products, setProducts] =
-    useState([]);
+  const baseUrl =
+    process.env.SERVER_URL ||
+    process.env.API_BASE_URL ||
+    "";
 
-  const [search, setSearch] =
-    useState("");
+  const cleanBaseUrl =
+    String(baseUrl).replace(/\/$/, "");
 
-  const [loading, setLoading] =
-    useState(true);
+  return `${cleanBaseUrl}/uploads/${filename}`;
+};
 
-  const [error, setError] =
-    useState("");
+// =====================================================
+// NORMALIZE IMAGE URL
+// =====================================================
 
-  // =====================================================
-  // VIEW
-  // =====================================================
+const normalizeImageUrl = (value) => {
+  if (!value) {
+    return null;
+  }
 
-  const [
-    selectedProduct,
-    setSelectedProduct,
-  ] = useState(null);
+  if (typeof value !== "string") {
+    return null;
+  }
 
-  const [
-    imagePreviewOpen,
-    setImagePreviewOpen,
-  ] = useState(false);
+  const cleanValue =
+    value.trim();
 
-  // =====================================================
-  // DELETE
-  // =====================================================
+  if (!cleanValue) {
+    return null;
+  }
 
-  const [
-    deleteLoading,
-    setDeleteLoading,
-  ] = useState(false);
+  return cleanValue;
+};
 
-  // =====================================================
-  // ADD / EDIT
-  // =====================================================
+// =====================================================
+// NORMALIZE PRODUCT TYPE
+// =====================================================
 
-  const [
-    editingProduct,
-    setEditingProduct,
-  ] = useState(null);
+const normalizeProductType = (
+  value
+) => {
+  if (!value) {
+    return "";
+  }
 
-  const [
-    editModalOpen,
-    setEditModalOpen,
-  ] = useState(false);
+  const type =
+    String(value).trim();
 
-  const [
-    isAddMode,
-    setIsAddMode,
-  ] = useState(false);
+  const allowedTypes = [
+    "Frame",
+    "Lens",
+    "Sunglasses",
+    "Contact Lens",
+    "Accessory",
+  ];
 
-  const [
-    editSaving,
-    setEditSaving,
-  ] = useState(false);
-
-  // =====================================================
-  // PRODUCT IMAGE
-  // =====================================================
-
-  const [
-    productImageFile,
-    setProductImageFile,
-  ] = useState(null);
-
-  const [
-    productImagePreview,
-    setProductImagePreview,
-  ] = useState("");
-
-  const productImageInputRef =
-    useRef(null);
-
-  // =====================================================
-  // BARCODE IMAGE
-  // =====================================================
-
-  const [
-    barcodeImageFile,
-    setBarcodeImageFile,
-  ] = useState(null);
-
-  const [
-    barcodeImagePreview,
-    setBarcodeImagePreview,
-  ] = useState("");
-
-  const barcodeImageInputRef =
-    useRef(null);
-
-  // =====================================================
-  // IMAGE URL HELPER
-  // =====================================================
-
-  const getImageUrl = useCallback(
-    (image) => {
-      if (!image) {
-        return "";
-      }
-
-      if (
-        typeof image ===
-        "object"
-      ) {
-        return getImageUrl(
-          image.url ||
-            image.ImageURL ||
-            image.imageURL ||
-            image.path ||
-            image.src ||
-            image.image ||
-            ""
-        );
-      }
-
-      if (
-        typeof image !==
-        "string"
-      ) {
-        return "";
-      }
-
-      const cleanImage =
-        image.trim();
-
-      if (!cleanImage) {
-        return "";
-      }
-
-      if (
-        cleanImage.startsWith(
-          "http://"
-        ) ||
-        cleanImage.startsWith(
-          "https://"
-        ) ||
-        cleanImage.startsWith(
-          "data:"
-        ) ||
-        cleanImage.startsWith(
-          "blob:"
-        )
-      ) {
-        return cleanImage;
-      }
-
-      if (
-        cleanImage.startsWith(
-          "/uploads/"
-        )
-      ) {
-        return `${SERVER_URL}${cleanImage}`;
-      }
-
-      if (
-        cleanImage.startsWith(
-          "uploads/"
-        )
-      ) {
-        return `${SERVER_URL}/${cleanImage}`;
-      }
-
-      if (
-        !cleanImage.startsWith(
-          "/"
-        )
-      ) {
-        return `${SERVER_URL}/uploads/${cleanImage}`;
-      }
-
-      return cleanImage;
-    },
-    []
-  );
-
-  // =====================================================
-  // GET PRODUCT IMAGE
-  // =====================================================
-
-  const getProductImage =
-    useCallback(
-      (product) => {
-        if (!product) {
-          return "";
-        }
-
-        return getImageUrl(
-          product.ImageURL ||
-            product.imageURL ||
-            product.image ||
-            product.Images
-        );
-      },
-      [getImageUrl]
+  const matchedType =
+    allowedTypes.find(
+      (item) =>
+        item.toLowerCase() ===
+        type.toLowerCase()
     );
 
-  // =====================================================
-  // GET BARCODE IMAGE
-  // =====================================================
+  return matchedType || type;
+};
 
-  const getBarcodeImage =
-    useCallback(
-      (product) => {
-        if (!product) {
-          return "";
-        }
+// =====================================================
+// NORMALIZE GENDER
+// =====================================================
 
-        return getImageUrl(
-          product.BarcodeImageURL ||
-            product.BarcodeImage ||
-            product.barcodeImageURL ||
-            product.barcodeImage
-        );
-      },
-      [getImageUrl]
+const normalizeForWhom = (
+  value
+) => {
+  if (!value) {
+    return "";
+  }
+
+  const gender =
+    String(value).trim();
+
+  const allowedValues = [
+    "Men",
+    "Women",
+    "Kids",
+    "Unisex",
+  ];
+
+  const matchedValue =
+    allowedValues.find(
+      (item) =>
+        item.toLowerCase() ===
+        gender.toLowerCase()
     );
 
-  // =====================================================
-  // LOAD PRODUCTS
-  // =====================================================
+  return matchedValue || "";
+};
 
-  const loadProducts =
-    useCallback(
-      async () => {
-        try {
-          setLoading(true);
-          setError("");
+// =====================================================
+// GENERATE TEMP PRODUCT CODE
+// =====================================================
 
-          const response =
-            await fetch(API);
+const generateTemporaryCode = () => {
+  return `TMP-${Date.now()}-${crypto
+    .randomBytes(4)
+    .toString("hex")
+    .toUpperCase()}`;
+};
 
-          const data =
-            await response.json();
+// =====================================================
+// GENERATE FINAL PRODUCT CODE
+// =====================================================
 
-          if (
-            !response.ok
-          ) {
-            throw new Error(
-              data.message ||
-                "Unable to load products."
-            );
-          }
+const generateProductCode = (
+  productId
+) => {
+  return `PRD-${String(
+    productId
+  ).padStart(5, "0")}`;
+};
 
-          setProducts(
-            Array.isArray(
-              data.products
-            )
-              ? data.products
-              : Array.isArray(
-                    data.data
-                  )
-                ? data.data
-                : []
-          );
-        } catch (err) {
-          console.error(
-            "Load Products Error:",
-            err
-          );
+// =====================================================
+// GET ALL PRODUCTS
+// GET /api/products
+// =====================================================
 
-          setError(
-            err.message ||
-              "Unable to load products."
-          );
-        } finally {
-          setLoading(false);
-        }
-      },
-      []
-    );
-
-  // =====================================================
-  // INITIAL LOAD
-  // =====================================================
-
-  useEffect(() => {
-    loadProducts();
-  }, [
-    loadProducts,
-  ]);
-
-  // =====================================================
-  // SEARCH
-  // =====================================================
-
-  const filteredProducts =
-    useMemo(() => {
-      const keyword =
-        search
-          .trim()
-          .toLowerCase();
-
-      if (!keyword) {
-        return products;
-      }
-
-      return products.filter(
-        (product) => {
-          const searchableText =
-            `
-              ${product.ProductID || ""}
-              ${product.ProductCode || ""}
-              ${product.ProductName || ""}
-              ${product.ProductType || ""}
-              ${product.TargetAudience || ""}
-              ${product.Barcode || ""}
-            `.toLowerCase();
-
-          return searchableText.includes(
-            keyword
-          );
-        }
-      );
-    }, [
+export const getProducts = async (
+  req,
+  res
+) => {
+  try {
+    const [
       products,
-      search,
-    ]);
+    ] = await pool.query(`
+      SELECT
 
-  // =====================================================
-  // SUMMARY
-  // =====================================================
+        p.ProductID,
 
-  const totalProducts =
-    products.length;
+        p.ProductCode,
 
-  const frameProducts =
-    products.filter(
-      (product) => {
-        const type =
-          String(
-            product.ProductType ||
-              ""
-          ).toLowerCase();
+        p.ProductName,
 
-        return (
-          type.includes(
-            "frame"
-          ) ||
-          type.includes(
-            "sunglass"
-          )
-        );
-      }
-    ).length;
+        p.ProductType,
 
-  const lensProducts =
-    products.filter(
-      (product) => {
-        const type =
-          String(
-            product.ProductType ||
-              ""
-          ).toLowerCase();
+        p.ForWhom,
 
-        return (
-          type.includes(
-            "lens"
-          ) ||
-          type.includes(
-            "contact"
-          )
-        );
-      }
-    ).length;
+        p.ImageURL,
 
-  // =====================================================
-  // HELPERS
-  // =====================================================
+        p.BarcodeImageURL,
 
-  const getProductId =
-    (product) => {
-      return (
-        product.ProductCode ||
-        `PRD-${product.ProductID}`
-      );
-    };
-
-  const getProductName =
-    (product) => {
-      return (
-        product.ProductName ||
-        "Unnamed Product"
-      );
-    };
-
-  const getStock =
-    (product) => {
-      return Number(
-        product.StockQuantity ??
-          product.Stock ??
-          product.Quantity ??
+        COALESCE(
+          i.Quantity,
           0
-      );
-    };
-
-  const getPrice =
-    (product) => {
-      const price =
-        product.Price ??
-        product.SellingPrice ??
-        product.LastPurchasePrice ??
-        0;
-
-      return Number(
-        price
-      ).toLocaleString(
-        "en-IN",
-        {
-          style: "currency",
-          currency: "INR",
-          maximumFractionDigits: 2,
-        }
-      );
-    };
-
-  // =====================================================
-  // VIEW
-  // =====================================================
-
-  const handleView =
-    (product) => {
-      setSelectedProduct(
-        product
-      );
-
-      setImagePreviewOpen(
-        false
-      );
-    };
-
-  // =====================================================
-  // CLOSE VIEW
-  // =====================================================
-
-  const closeView =
-    () => {
-      setSelectedProduct(
-        null
-      );
-
-      setImagePreviewOpen(
-        false
-      );
-    };
-
-  // =====================================================
-  // OPEN IMAGE
-  // =====================================================
-
-  const openImagePreview =
-    (product) => {
-      setSelectedProduct(
-        product
-      );
-
-      setImagePreviewOpen(
-        true
-      );
-    };
-
-  // =====================================================
-  // DELETE
-  // =====================================================
-
-  const handleDelete =
-    async (product) => {
-      const productId =
-        product.ProductID;
-
-      const confirmed =
-        window.confirm(
-          `Are you sure you want to delete "${getProductName(
-            product
-          )}"?`
-        );
-
-      if (!confirmed) {
-        return;
-      }
-
-      try {
-        setDeleteLoading(
-          true
-        );
-
-        const response =
-          await fetch(
-            `${API}/${productId}`,
-            {
-              method: "DELETE",
-            }
-          );
-
-        const data =
-          await response.json();
-
-        if (
-          !response.ok
-        ) {
-          throw new Error(
-            data.message ||
-              "Unable to delete product."
-          );
-        }
-
-        setProducts(
-          (previous) =>
-            previous.filter(
-              (item) =>
-                item.ProductID !==
-                productId
-            )
-        );
-
-        if (
-          selectedProduct?.ProductID ===
-          productId
-        ) {
-          closeView();
-        }
-
-        alert(
-          "Product deleted successfully."
-        );
-      } catch (err) {
-        console.error(
-          "Delete Product Error:",
-          err
-        );
-
-        alert(
-          err.message ||
-            "Unable to delete product."
-        );
-      } finally {
-        setDeleteLoading(
-          false
-        );
-      }
-    };
-
-  // =====================================================
-  // OPEN ADD
-  // =====================================================
-
-  const handleAddProduct =
-    () => {
-      setEditingProduct({
-        ProductID: null,
-
-        ProductCode: "",
-
-        ProductName: "",
-
-        ProductType: "",
-
-        TargetAudience: "",
-
-        Price: "",
-
-        StockQuantity: 0,
-
-        Barcode: "",
-
-        ImageURL: "",
-
-        BarcodeImageURL: "",
-      });
-
-      setProductImageFile(
-        null
-      );
-
-      setProductImagePreview(
-        ""
-      );
-
-      setBarcodeImageFile(
-        null
-      );
-
-      setBarcodeImagePreview(
-        ""
-      );
-
-      setIsAddMode(
-        true
-      );
-
-      setEditModalOpen(
-        true
-      );
-
-      closeView();
-    };
-
-  // =====================================================
-  // OPEN EDIT
-  // =====================================================
-
-  const openEditModal =
-    (product) => {
-      setEditingProduct({
-        ProductID:
-          product.ProductID,
-
-        ProductCode:
-          product.ProductCode ||
-          "",
-
-        ProductName:
-          product.ProductName ||
-          "",
-
-        ProductType:
-          product.ProductType ||
-          "",
-
-        TargetAudience:
-          product.TargetAudience ||
-          "",
-
-        Price:
-          product.Price ??
-          product.SellingPrice ??
-          product.LastPurchasePrice ??
-          0,
-
-        StockQuantity:
-          product.StockQuantity ??
-          product.Stock ??
-          product.Quantity ??
-          0,
-
-        Barcode:
-          product.Barcode ||
-          "",
-
-        ImageURL:
-          product.ImageURL ||
-          "",
-
-        BarcodeImageURL:
-          product.BarcodeImageURL ||
-          product.BarcodeImage ||
-          "",
-      });
-
-      setProductImageFile(
-        null
-      );
-
-      setProductImagePreview(
-        getProductImage(
-          product
-        )
-      );
-
-      setBarcodeImageFile(
-        null
-      );
-
-      setBarcodeImagePreview(
-        getBarcodeImage(
-          product
-        )
-      );
-
-      setIsAddMode(
-        false
-      );
-
-      setEditModalOpen(
-        true
-      );
-
-      closeView();
-    };
-
-  // =====================================================
-  // CLOSE EDIT
-  // =====================================================
-
-  const closeEditModal =
-    () => {
-      if (
-        editSaving
-      ) {
-        return;
-      }
-
-      setEditModalOpen(
-        false
-      );
-
-      setEditingProduct(
-        null
-      );
-
-      setIsAddMode(
-        false
-      );
-
-      setProductImageFile(
-        null
-      );
-
-      setProductImagePreview(
-        ""
-      );
-
-      setBarcodeImageFile(
-        null
-      );
-
-      setBarcodeImagePreview(
-        ""
-      );
-    };
-
-  // =====================================================
-  // INPUT CHANGE
-  // =====================================================
-
-  const handleEditChange =
-    (event) => {
+        ) AS StockQuantity,
+
+        COALESCE(
+          i.Quantity,
+          0
+        ) AS Stock,
+
+        COALESCE(
+          i.Quantity,
+          0
+        ) AS Quantity,
+
+        COALESCE(
+          i.LastPurchasePrice,
+          0
+        ) AS Price,
+
+        COALESCE(
+          i.LastPurchasePrice,
+          0
+        ) AS SellingPrice,
+
+        COALESCE(
+          i.LastPurchasePrice,
+          0
+        ) AS LastPurchasePrice
+
+      FROM products p
+
+      LEFT JOIN inventory i
+        ON i.ProductID =
+           p.ProductID
+
+      ORDER BY
+        p.ProductID DESC
+    `);
+
+    return res.status(200).json({
+      success: true,
+      count: products.length,
+      products,
+    });
+
+  } catch (error) {
+
+    console.error(
+      "Get Products Error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        error.sqlMessage ||
+        error.message ||
+        "Unable to load products.",
+      error:
+        error.sqlMessage ||
+        error.message,
+    });
+  }
+};
+
+// =====================================================
+// GET SINGLE PRODUCT
+// GET /api/products/:id
+// =====================================================
+
+export const getProductById =
+  async (
+    req,
+    res
+  ) => {
+
+    try {
+
       const {
-        name,
-        value,
-      } = event.target;
+        id,
+      } = req.params;
 
-      setEditingProduct(
-        (previous) => ({
-          ...previous,
-          [name]: value,
-        })
-      );
-    };
-
-  // =====================================================
-  // VALIDATE IMAGE
-  // =====================================================
-
-  const validateImage =
-    (file) => {
-      if (!file) {
-        return false;
+      if (!id) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Product ID is required.",
+        });
       }
 
+      const [
+        products,
+      ] = await pool.query(
+        `
+        SELECT
+
+          p.ProductID,
+
+          p.ProductCode,
+
+          p.ProductName,
+
+          p.ProductType,
+
+          p.ForWhom,
+
+          p.ImageURL,
+
+          p.BarcodeImageURL,
+
+          COALESCE(
+            i.Quantity,
+            0
+          ) AS StockQuantity,
+
+          COALESCE(
+            i.Quantity,
+            0
+          ) AS Stock,
+
+          COALESCE(
+            i.Quantity,
+            0
+          ) AS Quantity,
+
+          COALESCE(
+            i.LastPurchasePrice,
+            0
+          ) AS Price,
+
+          COALESCE(
+            i.LastPurchasePrice,
+            0
+          ) AS SellingPrice,
+
+          COALESCE(
+            i.LastPurchasePrice,
+            0
+          ) AS LastPurchasePrice
+
+        FROM products p
+
+        LEFT JOIN inventory i
+          ON i.ProductID =
+             p.ProductID
+
+        WHERE
+          p.ProductID = ?
+
+        LIMIT 1
+        `,
+        [id]
+      );
+
       if (
-        !ALLOWED_IMAGE_TYPES.includes(
-          file.type
+        products.length === 0
+      ) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Product not found.",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        product:
+          products[0],
+      });
+
+    } catch (error) {
+
+      console.error(
+        "Get Product Error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          error.sqlMessage ||
+          error.message ||
+          "Unable to load product.",
+        error:
+          error.sqlMessage ||
+          error.message,
+      });
+    }
+  };
+
+// =====================================================
+// UPLOAD SINGLE IMAGE
+// POST /api/products/upload-image
+// =====================================================
+
+export const uploadProductImage =
+  async (
+    req,
+    res
+  ) => {
+
+    try {
+
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "No image uploaded.",
+        });
+      }
+
+      const extension =
+        path.extname(
+          req.file.originalname
+        ) || ".jpg";
+
+      const oldPath =
+        req.file.path;
+
+      const newFilename =
+        `${req.file.filename}${extension}`;
+
+      const newPath =
+        path.join(
+          path.dirname(oldPath),
+          newFilename
+        );
+
+      if (
+        oldPath !== newPath &&
+        fs.existsSync(oldPath)
+      ) {
+        fs.renameSync(
+          oldPath,
+          newPath
+        );
+      }
+
+      const imageURL =
+        getImageUrl(
+          newFilename
+        );
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Image uploaded successfully.",
+
+        imageURL,
+
+        image:
+          imageURL,
+
+        url:
+          imageURL,
+      });
+
+    } catch (error) {
+
+      console.error(
+        "Upload Product Image Error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          error.message ||
+          "Unable to upload image.",
+        error:
+          error.message,
+      });
+    }
+  };
+
+// =====================================================
+// CREATE PRODUCT
+// POST /api/products
+// =====================================================
+
+export const createProduct =
+  async (
+    req,
+    res
+  ) => {
+
+    const connection =
+      await pool.getConnection();
+
+    try {
+
+      const {
+        ProductName,
+        ProductType,
+        ForWhom,
+        Price,
+        StockQuantity,
+        ImageURL,
+        BarcodeImageURL,
+      } = req.body;
+
+      // =================================================
+      // VALIDATION
+      // =================================================
+
+      if (
+        !ProductName ||
+        !String(
+          ProductName
+        ).trim()
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Product Name is required.",
+        });
+      }
+
+      const normalizedProductType =
+        normalizeProductType(
+          ProductType
+        );
+
+      if (!normalizedProductType) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Product Type is required.",
+        });
+      }
+
+      const normalizedForWhom =
+        normalizeForWhom(
+          ForWhom
+        );
+
+      if (!normalizedForWhom) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "For Whom / Gender is required.",
+        });
+      }
+
+      const numericPrice =
+        Number(Price);
+
+      if (
+        !Number.isFinite(
+          numericPrice
+        ) ||
+        numericPrice < 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Valid Price is required.",
+        });
+      }
+
+      const numericStock =
+        Number(StockQuantity);
+
+      if (
+        !Number.isFinite(
+          numericStock
+        ) ||
+        numericStock < 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Valid Stock Quantity is required.",
+        });
+      }
+
+      const productImage =
+        normalizeImageUrl(
+          ImageURL
+        );
+
+      const barcodeImage =
+        normalizeImageUrl(
+          BarcodeImageURL
+        );
+
+      // =================================================
+      // START TRANSACTION
+      // =================================================
+
+      await connection.beginTransaction();
+
+      // =================================================
+      // TEMPORARY PRODUCT CODE
+      // =================================================
+
+      const temporaryCode =
+        generateTemporaryCode();
+
+      // =================================================
+      // INSERT PRODUCT
+      //
+      // CategoryID intentionally NOT used.
+      // BrandID intentionally NOT used.
+      // =================================================
+
+      const [
+        productResult,
+      ] =
+        await connection.query(
+          `
+          INSERT INTO products
+          (
+            ProductCode,
+            ProductName,
+            ProductType,
+            ForWhom,
+            ImageURL,
+            BarcodeImageURL
+          )
+
+          VALUES
+          (
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?
+          )
+          `,
+          [
+            temporaryCode,
+
+            String(
+              ProductName
+            ).trim(),
+
+            normalizedProductType,
+
+            normalizedForWhom,
+
+            productImage,
+
+            barcodeImage,
+          ]
+        );
+
+      const productId =
+        productResult.insertId;
+
+      // =================================================
+      // GENERATE FINAL PRODUCT CODE
+      // =================================================
+
+      const productCode =
+        generateProductCode(
+          productId
+        );
+
+      await connection.query(
+        `
+        UPDATE products
+
+        SET ProductCode = ?
+
+        WHERE ProductID = ?
+        `,
+        [
+          productCode,
+          productId,
+        ]
+      );
+
+      // =================================================
+      // CREATE INVENTORY
+      // =================================================
+
+      await connection.query(
+        `
+        INSERT INTO inventory
+        (
+          ProductID,
+          Quantity,
+          ReservedQuantity,
+          LastPurchasePrice
         )
-      ) {
-        alert(
-          "Only JPG, PNG, WEBP and GIF images are allowed."
-        );
 
-        return false;
-      }
-
-      if (
-        file.size >
-        MAX_FILE_SIZE
-      ) {
-        alert(
-          "Image size must be maximum 5 MB."
-        );
-
-        return false;
-      }
-
-      return true;
-    };
-
-  // =====================================================
-  // PRODUCT IMAGE SELECT
-  // =====================================================
-
-  const handleProductImage =
-    (event) => {
-      const file =
-        event.target.files?.[0];
-
-      if (
-        !file ||
-        !validateImage(
-          file
+        VALUES
+        (
+          ?,
+          ?,
+          ?,
+          ?
         )
-      ) {
-        return;
-      }
+        `,
+        [
+          productId,
 
-      setProductImageFile(
-        file
+          numericStock,
+
+          0,
+
+          numericPrice,
+        ]
       );
 
-      const preview =
-        URL.createObjectURL(
-          file
-        );
+      // =================================================
+      // COMMIT
+      // =================================================
 
-      setProductImagePreview(
-        preview
-      );
+      await connection.commit();
 
-      setEditingProduct(
-        (previous) => ({
-          ...previous,
-          ImageURL: "",
-        })
-      );
-    };
+      return res.status(201).json({
+        success: true,
 
-  // =====================================================
-  // BARCODE IMAGE SELECT
-  // =====================================================
+        message:
+          "Product added successfully.",
 
-  const handleBarcodeImage =
-    (event) => {
-      const file =
-        event.target.files?.[0];
-
-      if (
-        !file ||
-        !validateImage(
-          file
-        )
-      ) {
-        return;
-      }
-
-      setBarcodeImageFile(
-        file
-      );
-
-      const preview =
-        URL.createObjectURL(
-          file
-        );
-
-      setBarcodeImagePreview(
-        preview
-      );
-
-      setEditingProduct(
-        (previous) => ({
-          ...previous,
-          BarcodeImageURL: "",
-        })
-      );
-    };
-
-  // =====================================================
-  // REMOVE PRODUCT IMAGE
-  // =====================================================
-
-  const removeProductImage =
-    () => {
-      setProductImageFile(
-        null
-      );
-
-      setProductImagePreview(
-        ""
-      );
-
-      setEditingProduct(
-        (previous) => ({
-          ...previous,
-          ImageURL: "",
-        })
-      );
-
-      if (
-        productImageInputRef.current
-      ) {
-        productImageInputRef.current.value =
-          "";
-      }
-    };
-
-  // =====================================================
-  // REMOVE BARCODE IMAGE
-  // =====================================================
-
-  const removeBarcodeImage =
-    () => {
-      setBarcodeImageFile(
-        null
-      );
-
-      setBarcodeImagePreview(
-        ""
-      );
-
-      setEditingProduct(
-        (previous) => ({
-          ...previous,
-          BarcodeImageURL: "",
-        })
-      );
-
-      if (
-        barcodeImageInputRef.current
-      ) {
-        barcodeImageInputRef.current.value =
-          "";
-      }
-    };
-
-  // =====================================================
-  // UPLOAD IMAGE
-  // =====================================================
-
-  const uploadImage =
-    async (file) => {
-      if (!file) {
-        return "";
-      }
-
-      const formData =
-        new FormData();
-
-      formData.append(
-        "image",
-        file
-      );
-
-      const response =
-        await fetch(
-          `${API}/upload-image`,
-          {
-            method: "POST",
-            body: formData,
-          }
-        );
-
-      const data =
-        await response.json();
-
-      if (
-        !response.ok
-      ) {
-        throw new Error(
-          data.message ||
-            "Unable to upload image."
-        );
-      }
-
-      const imageUrl =
-        data.url ||
-        data.imageUrl ||
-        data.imageURL ||
-        data.ImageURL ||
-        data.path ||
-        data.image ||
-        data.data?.url ||
-        data.data?.imageUrl ||
-        data.data?.imageURL ||
-        data.data?.ImageURL ||
-        data.data?.path ||
-        data.data?.image ||
-        "";
-
-      if (!imageUrl) {
-        throw new Error(
-          "Image uploaded but server did not return image URL."
-        );
-      }
-
-      return imageUrl;
-    };
-
-  // =====================================================
-  // SAVE PRODUCT
-  // =====================================================
-
-  const handleEditSubmit =
-    async (event) => {
-      event.preventDefault();
-
-      if (
-        !editingProduct
-      ) {
-        return;
-      }
-
-      // -------------------------------------------------
-      // PRODUCT NAME
-      // -------------------------------------------------
-
-      if (
-        !editingProduct.ProductName?.trim()
-      ) {
-        alert(
-          "Product Name is required."
-        );
-
-        return;
-      }
-
-      // -------------------------------------------------
-      // PRODUCT TYPE
-      // -------------------------------------------------
-
-      if (
-        !editingProduct.ProductType
-      ) {
-        alert(
-          "Please select Product Type."
-        );
-
-        return;
-      }
-
-      // -------------------------------------------------
-      // GENDER
-      // -------------------------------------------------
-
-      if (
-        !editingProduct.TargetAudience
-      ) {
-        alert(
-          "Please select For Whom / Gender."
-        );
-
-        return;
-      }
-
-      // -------------------------------------------------
-      // PRICE
-      // -------------------------------------------------
-
-      if (
-        editingProduct.Price ===
-          "" ||
-        Number(
-          editingProduct.Price
-        ) < 0
-      ) {
-        alert(
-          "Please enter a valid price."
-        );
-
-        return;
-      }
-
-      // -------------------------------------------------
-      // STOCK
-      // -------------------------------------------------
-
-      if (
-        editingProduct.StockQuantity ===
-          "" ||
-        Number(
-          editingProduct.StockQuantity
-        ) < 0
-      ) {
-        alert(
-          "Please enter a valid stock quantity."
-        );
-
-        return;
-      }
-
-      try {
-        setEditSaving(
-          true
-        );
-
-        // ---------------------------------------------
-        // UPLOAD PRODUCT IMAGE
-        // ---------------------------------------------
-
-        let finalProductImage =
-          editingProduct.ImageURL ||
-          null;
-
-        if (
-          productImageFile
-        ) {
-          finalProductImage =
-            await uploadImage(
-              productImageFile
-            );
-        }
-
-        // ---------------------------------------------
-        // UPLOAD BARCODE IMAGE
-        // ---------------------------------------------
-
-        let finalBarcodeImage =
-          editingProduct.BarcodeImageURL ||
-          null;
-
-        if (
-          barcodeImageFile
-        ) {
-          finalBarcodeImage =
-            await uploadImage(
-              barcodeImageFile
-            );
-        }
-
-        // ---------------------------------------------
-        // PAYLOAD
-        // ---------------------------------------------
-
-        const payload = {
-          // IMPORTANT:
-          // ProductCode is NOT entered manually.
-          // Backend generates it for ADD.
+        product: {
+          ProductID:
+            productId,
 
           ProductCode:
-            isAddMode
-              ? null
-              : editingProduct.ProductCode ||
-                null,
+            productCode,
 
           ProductName:
-            editingProduct.ProductName.trim(),
+            String(
+              ProductName
+            ).trim(),
 
           ProductType:
-            editingProduct.ProductType,
+            normalizedProductType,
 
-          TargetAudience:
-            editingProduct.TargetAudience,
+          ForWhom:
+            normalizedForWhom,
 
           Price:
-            Number(
-              editingProduct.Price
-            ),
-
-          Quantity:
-            Number(
-              editingProduct.StockQuantity
-            ),
+            numericPrice,
 
           StockQuantity:
-            Number(
-              editingProduct.StockQuantity
-            ),
+            numericStock,
 
-          Stock:
-            Number(
-              editingProduct.StockQuantity
-            ),
-
-          LastPurchasePrice:
-            Number(
-              editingProduct.Price
-            ),
-
-          // Product image
           ImageURL:
-            finalProductImage,
+            productImage,
 
-          // Barcode image
           BarcodeImageURL:
-            finalBarcodeImage,
+            barcodeImage,
+        },
+      });
 
-          // Barcode text is optional
-          Barcode:
-            editingProduct.Barcode?.trim() ||
-            null,
-        };
+    } catch (error) {
 
-        console.log(
-          isAddMode
-            ? "Creating Product:"
-            : "Updating Product:",
-          payload
+      await connection.rollback();
+
+      console.error(
+        "Create Product Error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          error.sqlMessage ||
+          error.message ||
+          "Unable to create product.",
+        error:
+          error.sqlMessage ||
+          error.message,
+      });
+
+    } finally {
+
+      connection.release();
+    }
+  };
+
+// =====================================================
+// UPDATE PRODUCT
+// PUT /api/products/:id
+// =====================================================
+
+export const updateProduct =
+  async (
+    req,
+    res
+  ) => {
+
+    const connection =
+      await pool.getConnection();
+
+    try {
+
+      const {
+        id,
+      } = req.params;
+
+      if (!id) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Product ID is required.",
+        });
+      }
+
+      const {
+        ProductName,
+        ProductType,
+        ForWhom,
+        Price,
+        StockQuantity,
+        ImageURL,
+        BarcodeImageURL,
+      } = req.body;
+
+      // =================================================
+      // VALIDATION
+      // =================================================
+
+      if (
+        !ProductName ||
+        !String(
+          ProductName
+        ).trim()
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Product Name is required.",
+        });
+      }
+
+      const normalizedProductType =
+        normalizeProductType(
+          ProductType
         );
 
-        // ---------------------------------------------
-        // CREATE
-        // ---------------------------------------------
+      if (!normalizedProductType) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Product Type is required.",
+        });
+      }
 
-        const response =
-          await fetch(
-            isAddMode
-              ? API
-              : `${API}/${editingProduct.ProductID}`,
-            {
-              method:
-                isAddMode
-                  ? "POST"
-                  : "PUT",
-
-              headers: {
-                "Content-Type":
-                  "application/json",
-              },
-
-              body: JSON.stringify(
-                payload
-              ),
-            }
-          );
-
-        const data =
-          await response.json();
-
-        if (
-          !response.ok
-        ) {
-          throw new Error(
-            data.message ||
-              data.error ||
-              "Unable to save product."
-          );
-        }
-
-        closeEditModal();
-
-        await loadProducts();
-
-        alert(
-          isAddMode
-            ? "Product added successfully."
-            : "Product updated successfully."
-        );
-      } catch (err) {
-        console.error(
-          "Product Save Error:",
-          err
+      const normalizedForWhom =
+        normalizeForWhom(
+          ForWhom
         );
 
-        alert(
-          err.message ||
-            "Unable to save product."
+      if (!normalizedForWhom) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "For Whom / Gender is required.",
+        });
+      }
+
+      const numericPrice =
+        Number(Price);
+
+      if (
+        !Number.isFinite(
+          numericPrice
+        ) ||
+        numericPrice < 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Valid Price is required.",
+        });
+      }
+
+      const numericStock =
+        Number(StockQuantity);
+
+      if (
+        !Number.isFinite(
+          numericStock
+        ) ||
+        numericStock < 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Valid Stock Quantity is required.",
+        });
+      }
+
+      const productImage =
+        normalizeImageUrl(
+          ImageURL
         );
-      } finally {
-        setEditSaving(
-          false
+
+      const barcodeImage =
+        normalizeImageUrl(
+          BarcodeImageURL
+        );
+
+      // =================================================
+      // START TRANSACTION
+      // =================================================
+
+      await connection.beginTransaction();
+
+      // =================================================
+      // CHECK PRODUCT
+      // =================================================
+
+      const [
+        existingProducts,
+      ] =
+        await connection.query(
+          `
+          SELECT
+            ProductID,
+            ProductCode
+
+          FROM products
+
+          WHERE ProductID = ?
+
+          LIMIT 1
+          `,
+          [id]
+        );
+
+      if (
+        existingProducts.length ===
+        0
+      ) {
+
+        await connection.rollback();
+
+        return res.status(404).json({
+          success: false,
+          message:
+            "Product not found.",
+        });
+      }
+
+      // =================================================
+      // UPDATE PRODUCT
+      // =================================================
+
+      await connection.query(
+        `
+        UPDATE products
+
+        SET
+          ProductName = ?,
+          ProductType = ?,
+          ForWhom = ?,
+          ImageURL = ?,
+          BarcodeImageURL = ?
+
+        WHERE ProductID = ?
+        `,
+        [
+          String(
+            ProductName
+          ).trim(),
+
+          normalizedProductType,
+
+          normalizedForWhom,
+
+          productImage,
+
+          barcodeImage,
+
+          id,
+        ]
+      );
+
+      // =================================================
+      // CHECK INVENTORY
+      // =================================================
+
+      const [
+        inventoryRows,
+      ] =
+        await connection.query(
+          `
+          SELECT
+            InventoryID
+
+          FROM inventory
+
+          WHERE ProductID = ?
+
+          LIMIT 1
+          `,
+          [id]
+        );
+
+      // =================================================
+      // UPDATE EXISTING INVENTORY
+      // =================================================
+
+      if (
+        inventoryRows.length > 0
+      ) {
+
+        await connection.query(
+          `
+          UPDATE inventory
+
+          SET
+            Quantity = ?,
+            LastPurchasePrice = ?
+
+          WHERE ProductID = ?
+          `,
+          [
+            numericStock,
+
+            numericPrice,
+
+            id,
+          ]
+        );
+
+      } else {
+
+        // ===============================================
+        // CREATE INVENTORY IF MISSING
+        // ===============================================
+
+        await connection.query(
+          `
+          INSERT INTO inventory
+          (
+            ProductID,
+            Quantity,
+            ReservedQuantity,
+            LastPurchasePrice
+          )
+
+          VALUES
+          (
+            ?,
+            ?,
+            ?,
+            ?
+          )
+          `,
+          [
+            id,
+
+            numericStock,
+
+            0,
+
+            numericPrice,
+          ]
         );
       }
-    };
 
-  // =====================================================
-  // RENDER
-  // =====================================================
+      // =================================================
+      // COMMIT
+      // =================================================
 
-  return (
-    <div className="products-page">
+      await connection.commit();
 
-      {/* =================================================
-          HEADER
-      ================================================= */}
+      return res.status(200).json({
+        success: true,
 
-      <div className="page-top">
+        message:
+          "Product updated successfully.",
 
-        <div>
-          <h1>
-            Products
-          </h1>
+        product: {
+          ProductID:
+            Number(id),
 
-          <p>
-            Manage your optical products and stock.
-          </p>
-        </div>
+          ProductCode:
+            existingProducts[0]
+              .ProductCode,
 
-        <button
-          className="primary-btn"
-          type="button"
-          onClick={
-            handleAddProduct
-          }
-        >
-          <Plus
-            size={17}
-          />
+          ProductName:
+            String(
+              ProductName
+            ).trim(),
 
-          Add Product
-        </button>
+          ProductType:
+            normalizedProductType,
 
-      </div>
+          ForWhom:
+            normalizedForWhom,
 
-      {/* =================================================
-          SUMMARY
-      ================================================= */}
+          Price:
+            numericPrice,
 
-      <div className="product-summary">
+          StockQuantity:
+            numericStock,
+
+          ImageURL:
+            productImage,
 
-        <div className="summary-card">
+          BarcodeImageURL:
+            barcodeImage,
+        },
+      });
+
+    } catch (error) {
 
-          <div className="summary-icon blue">
-            <Package
-              size={21}
-            />
-          </div>
+      await connection.rollback();
+
+      console.error(
+        "Update Product Error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          error.sqlMessage ||
+          error.message ||
+          "Unable to update product.",
+        error:
+          error.sqlMessage ||
+          error.message,
+      });
+
+    } finally {
 
-          <div className="summary-content">
+      connection.release();
+    }
+  };
+
+// =====================================================
+// DELETE PRODUCT
+// DELETE /api/products/:id
+// =====================================================
 
-            <span>
-              Total Products
-            </span>
-
-            <strong>
-              {totalProducts.toLocaleString(
-                "en-IN"
-              )}
-            </strong>
-
-          </div>
-
-        </div>
-
-        <div className="summary-card">
-
-          <div className="summary-icon green">
-            <Glasses
-              size={21}
-            />
-          </div>
-
-          <div className="summary-content">
-
-            <span>
-              Frames
-            </span>
-
-            <strong>
-              {frameProducts.toLocaleString(
-                "en-IN"
-              )}
-            </strong>
-
-          </div>
-
-        </div>
-
-        <div className="summary-card">
-
-          <div className="summary-icon orange">
-            <Package
-              size={21}
-            />
-          </div>
-
-          <div className="summary-content">
-
-            <span>
-              Lenses
-            </span>
-
-            <strong>
-              {lensProducts.toLocaleString(
-                "en-IN"
-              )}
-            </strong>
-
-          </div>
-
-        </div>
-
-      </div>
-
-      {/* =================================================
-          ERROR
-      ================================================= */}
-
-      {error && (
-        <div className="products-error">
-
-          <div>
-
-            <strong>
-              Unable to load products
-            </strong>
-
-            <p>
-              {error}
-            </p>
-
-          </div>
-
-          <button
-            type="button"
-            onClick={
-              loadProducts
-            }
-          >
-            <RefreshCw
-              size={16}
-            />
-
-            Retry
-          </button>
-
-        </div>
-      )}
-
-      {/* =================================================
-          PRODUCT TABLE
-      ================================================= */}
-
-      <div className="content-card">
-
-        <div className="table-toolbar">
-
-          <div>
-
-            <h2>
-              Product Catalog
-            </h2>
-
-            <span>
-              {products.length} product
-              {products.length ===
-              1
-                ? ""
-                : "s"}{" "}
-              available.
-            </span>
-
-          </div>
-
-          <div className="search-box">
-
-            <Search
-              size={17}
-            />
-
-            <input
-              type="text"
-              placeholder="Search product..."
-              value={search}
-              onChange={(
-                event
-              ) =>
-                setSearch(
-                  event.target.value
-                )
-              }
-            />
-
-            {search && (
-              <button
-                type="button"
-                className="search-clear"
-                onClick={() =>
-                  setSearch("")
-                }
-              >
-                <X
-                  size={14}
-                />
-              </button>
-            )}
-
-          </div>
-
-        </div>
-
-        {loading ? (
-          <div className="products-loading">
-
-            <RefreshCw
-              size={28}
-              className="loading-spinner"
-            />
-
-            <p>
-              Loading products...
-            </p>
-
-          </div>
-        ) : (
-          <>
-
-            <div className="responsive-table">
-
-              <table>
-
-                <thead>
-
-                  <tr>
-
-                    <th>
-                      IMAGE
-                    </th>
-
-                    <th>
-                      PRODUCT CODE
-                    </th>
-
-                    <th>
-                      PRODUCT
-                    </th>
-
-                    <th>
-                      TYPE
-                    </th>
-
-                    <th>
-                      GENDER
-                    </th>
-
-                    <th>
-                      PRICE
-                    </th>
-
-                    <th>
-                      STOCK
-                    </th>
-
-                    <th>
-                      ACTION
-                    </th>
-
-                  </tr>
-
-                </thead>
-
-                <tbody>
-
-                  {filteredProducts.map(
-                    (
-                      product
-                    ) => {
-
-                      const image =
-                        getProductImage(
-                          product
-                        );
-
-                      const stock =
-                        getStock(
-                          product
-                        );
-
-                      return (
-                        <tr
-                          key={
-                            product.ProductID
-                          }
-                        >
-
-                          <td>
-
-                            <div
-                              className={
-                                image
-                                  ? "product-image clickable"
-                                  : "product-image"
-                              }
-                              onClick={() => {
-                                if (
-                                  image
-                                ) {
-                                  openImagePreview(
-                                    product
-                                  );
-                                }
-                              }}
-                            >
-
-                              {image ? (
-                                <img
-                                  src={
-                                    image
-                                  }
-                                  alt={
-                                    getProductName(
-                                      product
-                                    )
-                                  }
-                                />
-                              ) : (
-                                <Package
-                                  size={
-                                    20
-                                  }
-                                />
-                              )}
-
-                            </div>
-
-                          </td>
-
-                          <td>
-
-                            <span className="product-code">
-                              {getProductId(
-                                product
-                              )}
-                            </span>
-
-                          </td>
-
-                          <td>
-
-                            <strong className="product-title">
-                              {getProductName(
-                                product
-                              )}
-                            </strong>
-
-                          </td>
-
-                          <td>
-
-                            <span className="category-badge">
-                              {product.ProductType ||
-                                "—"}
-                            </span>
-
-                          </td>
-
-                          <td>
-                            {product.TargetAudience ||
-                              "—"}
-                          </td>
-
-                          <td className="amount">
-                            {getPrice(
-                              product
-                            )}
-                          </td>
-
-                          <td>
-
-                            <span
-                              className={
-                                stock <=
-                                10
-                                  ? "stock-low"
-                                  : "stock-good"
-                              }
-                            >
-                              {stock}
-                            </span>
-
-                          </td>
-
-                          <td>
-
-                            <div className="action-buttons">
-
-                              <button
-                                type="button"
-                                title="View"
-                                onClick={() =>
-                                  handleView(
-                                    product
-                                  )
-                                }
-                              >
-                                <Eye
-                                  size={
-                                    15
-                                  }
-                                />
-                              </button>
-
-                              <button
-                                type="button"
-                                title="Edit"
-                                onClick={() =>
-                                  openEditModal(
-                                    product
-                                  )
-                                }
-                              >
-                                <Pencil
-                                  size={
-                                    15
-                                  }
-                                />
-                              </button>
-
-                              <button
-                                type="button"
-                                title="Delete"
-                                disabled={
-                                  deleteLoading
-                                }
-                                onClick={() =>
-                                  handleDelete(
-                                    product
-                                  )
-                                }
-                              >
-                                <Trash2
-                                  size={
-                                    15
-                                  }
-                                />
-                              </button>
-
-                            </div>
-
-                          </td>
-
-                        </tr>
-                      );
-                    }
-                  )}
-
-                </tbody>
-
-              </table>
-
-            </div>
-
-            {filteredProducts.length ===
-              0 && (
-              <div className="no-products">
-
-                <Package
-                  size={35}
-                />
-
-                <h3>
-                  {search
-                    ? "No products found"
-                    : "No products available"}
-                </h3>
-
-                <p>
-                  {search
-                    ? "Try changing your search."
-                    : "Add your first product to get started."}
-                </p>
-
-              </div>
-            )}
-
-          </>
-        )}
-
-      </div>
-
-      {/* =====================================================
-          VIEW PRODUCT
-      ===================================================== */}
-
-      {selectedProduct &&
-        !imagePreviewOpen && (
-          <div
-            className="product-modal-overlay"
-            onClick={
-              closeView
-            }
-          >
-
-            <div
-              className="product-modal"
-              onClick={(
-                event
-              ) =>
-                event.stopPropagation()
-              }
-            >
-
-              <button
-                type="button"
-                className="modal-close"
-                onClick={
-                  closeView
-                }
-              >
-                <X
-                  size={19}
-                />
-              </button>
-
-              <div className="product-modal-image">
-
-                {getProductImage(
-                  selectedProduct
-                ) ? (
-                  <img
-                    src={getProductImage(
-                      selectedProduct
-                    )}
-                    alt={getProductName(
-                      selectedProduct
-                    )}
-                    onClick={() =>
-                      openImagePreview(
-                        selectedProduct
-                      )
-                    }
-                  />
-                ) : (
-                  <ImageIcon
-                    size={50}
-                  />
-                )}
-
-              </div>
-
-              <div className="product-modal-content">
-
-                <h2>
-                  {getProductName(
-                    selectedProduct
-                  )}
-                </h2>
-
-                <p className="modal-product-code">
-                  {getProductId(
-                    selectedProduct
-                  )}
-                </p>
-
-                <div className="product-detail-grid">
-
-                  <div>
-                    <span>
-                      Product Type
-                    </span>
-
-                    <strong>
-                      {selectedProduct.ProductType ||
-                        "—"}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span>
-                      For Whom
-                    </span>
-
-                    <strong>
-                      {selectedProduct.TargetAudience ||
-                        "—"}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span>
-                      Stock
-                    </span>
-
-                    <strong>
-                      {getStock(
-                        selectedProduct
-                      )}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span>
-                      Price
-                    </span>
-
-                    <strong>
-                      {getPrice(
-                        selectedProduct
-                      )}
-                    </strong>
-                  </div>
-
-                </div>
-
-                {/* BARCODE */}
-
-                <div className="barcode-preview-box">
-
-                  <div className="barcode-preview-heading">
-
-                    <Barcode
-                      size={18}
-                    />
-
-                    <span>
-                      Barcode
-                    </span>
-
-                  </div>
-
-                  {getBarcodeImage(
-                    selectedProduct
-                  ) ? (
-                    <img
-                      src={getBarcodeImage(
-                        selectedProduct
-                      )}
-                      alt="Product barcode"
-                    />
-                  ) : (
-                    <span className="no-barcode">
-                      No barcode image
-                    </span>
-                  )}
-
-                </div>
-
-              </div>
-
-            </div>
-
-          </div>
-        )}
-
-      {/* =====================================================
-          IMAGE PREVIEW
-      ===================================================== */}
-
-      {imagePreviewOpen &&
-        selectedProduct && (
-          <div
-            className="image-preview-overlay"
-            onClick={() =>
-              setImagePreviewOpen(
-                false
-              )
-            }
-          >
-
-            <button
-              type="button"
-              className="image-preview-close"
-              onClick={() =>
-                setImagePreviewOpen(
-                  false
-                )
-              }
-            >
-              <X
-                size={25}
-              />
-            </button>
-
-            <div
-              className="image-preview-content"
-              onClick={(
-                event
-              ) =>
-                event.stopPropagation()
-              }
-            >
-
-              {getProductImage(
-                selectedProduct
-              ) ? (
-                <img
-                  src={getProductImage(
-                    selectedProduct
-                  )}
-                  alt={getProductName(
-                    selectedProduct
-                  )}
-                />
-              ) : (
-                <div className="preview-no-image">
-
-                  <ImageIcon
-                    size={60}
-                  />
-
-                  <p>
-                    No image available
-                  </p>
-
-                </div>
-              )}
-
-              <div className="image-preview-caption">
-
-                <strong>
-                  {getProductName(
-                    selectedProduct
-                  )}
-                </strong>
-
-              </div>
-
-            </div>
-
-          </div>
-        )}
-
-      {/* =====================================================
-          ADD / EDIT MODAL
-      ===================================================== */}
-
-      {editModalOpen &&
-        editingProduct && (
-          <div
-            className="edit-product-overlay"
-            onClick={
-              closeEditModal
-            }
-          >
-
-            <div
-              className="edit-product-modal"
-              onClick={(
-                event
-              ) =>
-                event.stopPropagation()
-              }
-            >
-
-              {/* HEADER */}
-
-              <div className="edit-modal-header">
-
-                <div>
-
-                  <h2>
-                    {isAddMode
-                      ? "Add Product"
-                      : "Edit Product"}
-                  </h2>
-
-                  <p>
-                    {isAddMode
-                      ? "Enter basic product information."
-                      : "Update product information."}
-                  </p>
-
-                </div>
-
-                <button
-                  type="button"
-                  className="edit-close-btn"
-                  onClick={
-                    closeEditModal
-                  }
-                  disabled={
-                    editSaving
-                  }
-                >
-                  <X
-                    size={20}
-                  />
-                </button>
-
-              </div>
-
-              {/* FORM */}
-
-              <form
-                onSubmit={
-                  handleEditSubmit
-                }
-                className="edit-product-form"
-              >
-
-                {/* PRODUCT CODE */}
-
-                {!isAddMode && (
-                  <div className="automatic-code-box">
-
-                    <div>
-
-                      <span>
-                        Product Code
-                      </span>
-
-                      <strong>
-                        {editingProduct.ProductCode ||
-                          "—"}
-                      </strong>
-
-                    </div>
-
-                    <small>
-                      Automatically generated
-                    </small>
-
-                  </div>
-                )}
-
-                {/* =================================================
-                    PRODUCT IMAGE
-                ================================================= */}
-
-                <div className="upload-section">
-
-                  <label>
-                    Product Image
-                  </label>
-
-                  <div className="single-image-upload">
-
-                    {productImagePreview ? (
-                      <div className="single-image-preview">
-
-                        <img
-                          src={
-                            productImagePreview
-                          }
-                          alt="Product preview"
-                        />
-
-                        <button
-                          type="button"
-                          className="remove-upload-btn"
-                          onClick={
-                            removeProductImage
-                          }
-                        >
-                          <X
-                            size={16}
-                          />
-                        </button>
-
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        className="upload-placeholder"
-                        onClick={() =>
-                          productImageInputRef.current?.click()
-                        }
-                      >
-
-                        <Upload
-                          size={25}
-                        />
-
-                        <strong>
-                          Add Product Image
-                        </strong>
-
-                        <span>
-                          JPG, PNG or WEBP · Max 5 MB
-                        </span>
-
-                      </button>
-                    )}
-
-                    <input
-                      ref={
-                        productImageInputRef
-                      }
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,image/gif"
-                      hidden
-                      onChange={
-                        handleProductImage
-                      }
-                    />
-
-                    {productImagePreview && (
-                      <button
-                        type="button"
-                        className="change-image-btn"
-                        onClick={() =>
-                          productImageInputRef.current?.click()
-                        }
-                      >
-                        <Upload
-                          size={15}
-                        />
-
-                        Change Image
-                      </button>
-                    )}
-
-                  </div>
-
-                </div>
-
-                {/* =================================================
-                    BARCODE IMAGE
-                ================================================= */}
-
-                <div className="upload-section">
-
-                  <label>
-                    Barcode Image
-                  </label>
-
-                  <div className="barcode-upload-area">
-
-                    {barcodeImagePreview ? (
-                      <div className="barcode-image-preview">
-
-                        <img
-                          src={
-                            barcodeImagePreview
-                          }
-                          alt="Barcode preview"
-                        />
-
-                        <button
-                          type="button"
-                          className="remove-upload-btn"
-                          onClick={
-                            removeBarcodeImage
-                          }
-                        >
-                          <X
-                            size={15}
-                          />
-                        </button>
-
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        className="barcode-upload-placeholder"
-                        onClick={() =>
-                          barcodeImageInputRef.current?.click()
-                        }
-                      >
-
-                        <Barcode
-                          size={28}
-                        />
-
-                        <strong>
-                          Add Barcode Image
-                        </strong>
-
-                        <span>
-                          Small barcode image · Max 5 MB
-                        </span>
-
-                      </button>
-                    )}
-
-                    <input
-                      ref={
-                        barcodeImageInputRef
-                      }
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,image/gif"
-                      hidden
-                      onChange={
-                        handleBarcodeImage
-                      }
-                    />
-
-                  </div>
-
-                </div>
-
-                {/* =================================================
-                    BASIC FIELDS
-                ================================================= */}
-
-                <div className="edit-section">
-
-                  <h3>
-                    Product Information
-                  </h3>
-
-                  <div className="edit-grid">
-
-                    {/* PRODUCT NAME */}
-
-                    <div className="edit-field full-width">
-
-                      <label>
-                        Product Name *
-                      </label>
-
-                      <input
-                        type="text"
-                        name="ProductName"
-                        value={
-                          editingProduct.ProductName
-                        }
-                        onChange={
-                          handleEditChange
-                        }
-                        placeholder="Enter product name"
-                        required
-                      />
-
-                    </div>
-
-                    {/* PRODUCT TYPE */}
-
-                    <div className="edit-field">
-
-                      <label>
-                        Product Type *
-                      </label>
-
-                      <select
-                        name="ProductType"
-                        value={
-                          editingProduct.ProductType
-                        }
-                        onChange={
-                          handleEditChange
-                        }
-                        required
-                      >
-
-                        <option value="">
-                          Select Product Type
-                        </option>
-
-                        <option value="Optical Frames">
-                          Optical Frames
-                        </option>
-
-                        <option value="Sunglasses">
-                          Sunglasses
-                        </option>
-
-                        <option value="Prescription Lenses">
-                          Prescription Lenses
-                        </option>
-
-                        <option value="Contact Lenses">
-                          Contact Lenses
-                        </option>
-
-                        <option value="Accessories">
-                          Accessories
-                        </option>
-
-                        <option value="Lens Care">
-                          Lens Care
-                        </option>
-
-                      </select>
-
-                    </div>
-
-                    {/* GENDER */}
-
-                    <div className="edit-field">
-
-                      <label>
-                        For Whom / Gender *
-                      </label>
-
-                      <select
-                        name="TargetAudience"
-                        value={
-                          editingProduct.TargetAudience
-                        }
-                        onChange={
-                          handleEditChange
-                        }
-                        required
-                      >
-
-                        <option value="">
-                          Select
-                        </option>
-
-                        <option value="Boy">
-                          Boy
-                        </option>
-
-                        <option value="Girl">
-                          Girl
-                        </option>
-
-                        <option value="Men">
-                          Men
-                        </option>
-
-                        <option value="Women">
-                          Women
-                        </option>
-
-                        <option value="Unisex">
-                          Unisex
-                        </option>
-
-                      </select>
-
-                    </div>
-
-                    {/* PRICE */}
-
-                    <div className="edit-field">
-
-                      <label>
-                        Price *
-                      </label>
-
-                      <input
-                        type="number"
-                        name="Price"
-                        value={
-                          editingProduct.Price
-                        }
-                        onChange={
-                          handleEditChange
-                        }
-                        placeholder="Enter price"
-                        min="0"
-                        step="0.01"
-                        required
-                      />
-
-                    </div>
-
-                    {/* STOCK */}
-
-                    <div className="edit-field">
-
-                      <label>
-                        Stock Quantity *
-                      </label>
-
-                      <input
-                        type="number"
-                        name="StockQuantity"
-                        value={
-                          editingProduct.StockQuantity
-                        }
-                        onChange={
-                          handleEditChange
-                        }
-                        placeholder="Enter stock quantity"
-                        min="0"
-                        step="1"
-                        required
-                      />
-
-                    </div>
-
-                  </div>
-
-                </div>
-
-                {/* =================================================
-                    FOOTER
-                ================================================= */}
-
-                <div className="edit-modal-footer">
-
-                  <button
-                    type="button"
-                    className="secondary-btn"
-                    onClick={
-                      closeEditModal
-                    }
-                    disabled={
-                      editSaving
-                    }
-                  >
-                    Cancel
-                  </button>
-
-                  <button
-                    type="submit"
-                    className="primary-btn"
-                    disabled={
-                      editSaving
-                    }
-                  >
-
-                    {editSaving ? (
-                      <>
-                        <RefreshCw
-                          size={16}
-                          className="loading-spinner"
-                        />
-
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save
-                          size={16}
-                        />
-
-                        {isAddMode
-                          ? "Save Product"
-                          : "Save Changes"}
-                      </>
-                    )}
-
-                  </button>
-
-                </div>
-
-              </form>
-
-            </div>
-
-          </div>
-        )}
-
-    </div>
-  );
-}
-
-export default Products;
+export const deleteProduct =
+  async (
+    req,
+    res
+  ) => {
+
+    const connection =
+      await pool.getConnection();
+
+    try {
+
+      const {
+        id,
+      } = req.params;
+
+      if (!id) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Product ID is required.",
+        });
+      }
+
+      await connection.beginTransaction();
+
+      // =================================================
+      // GET PRODUCT
+      // =================================================
+
+      const [
+        products,
+      ] =
+        await connection.query(
+          `
+          SELECT
+            ProductID,
+            ImageURL,
+            BarcodeImageURL
+
+          FROM products
+
+          WHERE ProductID = ?
+
+          LIMIT 1
+          `,
+          [id]
+        );
+
+      if (
+        products.length ===
+        0
+      ) {
+
+        await connection.rollback();
+
+        return res.status(404).json({
+          success: false,
+          message:
+            "Product not found.",
+        });
+      }
+
+      const product =
+        products[0];
+
+      // =================================================
+      // DELETE INVENTORY
+      // =================================================
+
+      await connection.query(
+        `
+        DELETE FROM inventory
+
+        WHERE ProductID = ?
+        `,
+        [id]
+      );
+
+      // =================================================
+      // DELETE INVENTORY TRANSACTIONS
+      //
+      // Only if table exists.
+      // =================================================
+
+      try {
+
+        await connection.query(
+          `
+          DELETE FROM inventory_transactions
+
+          WHERE ProductID = ?
+          `,
+          [id]
+        );
+
+      } catch (
+        transactionDeleteError
+      ) {
+
+        console.warn(
+          "Inventory transaction delete skipped:",
+          transactionDeleteError.message
+        );
+      }
+
+      // =================================================
+      // DELETE PRODUCT IMAGES
+      //
+      // Old system may have this table.
+      // =================================================
+
+      try {
+
+        await connection.query(
+          `
+          DELETE FROM product_images
+
+          WHERE ProductID = ?
+          `,
+          [id]
+        );
+
+      } catch (
+        imageTableError
+      ) {
+
+        console.warn(
+          "Product images table delete skipped:",
+          imageTableError.message
+        );
+      }
+
+      // =================================================
+      // DELETE PRODUCT
+      // =================================================
+
+      const [
+        result,
+      ] =
+        await connection.query(
+          `
+          DELETE FROM products
+
+          WHERE ProductID = ?
+          `,
+          [id]
+        );
+
+      if (
+        result.affectedRows ===
+        0
+      ) {
+
+        await connection.rollback();
+
+        return res.status(404).json({
+          success: false,
+          message:
+            "Product not found.",
+        });
+      }
+
+      await connection.commit();
+
+      // =================================================
+      // DELETE PHYSICAL PRODUCT IMAGE
+      // =================================================
+
+      deletePhysicalImage(
+        product.ImageURL
+      );
+
+      // =================================================
+      // DELETE PHYSICAL BARCODE IMAGE
+      // =================================================
+
+      deletePhysicalImage(
+        product.BarcodeImageURL
+      );
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Product deleted successfully.",
+      });
+
+    } catch (error) {
+
+      await connection.rollback();
+
+      console.error(
+        "Delete Product Error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          error.sqlMessage ||
+          error.message ||
+          "Unable to delete product.",
+        error:
+          error.sqlMessage ||
+          error.message,
+      });
+
+    } finally {
+
+      connection.release();
+    }
+  };
+
+// =====================================================
+// DELETE PHYSICAL IMAGE
+// =====================================================
+
+const deletePhysicalImage = (
+  imageURL
+) => {
+
+  try {
+
+    if (!imageURL) {
+      return;
+    }
+
+    const cleanURL =
+      String(
+        imageURL
+      ).trim();
+
+    if (
+      !cleanURL.includes(
+        "/uploads/"
+      )
+    ) {
+      return;
+    }
+
+    const filename =
+      path.basename(
+        cleanURL
+      );
+
+    if (!filename) {
+      return;
+    }
+
+    const uploadPath =
+      path.join(
+        process.cwd(),
+        "uploads",
+        filename
+      );
+
+    if (
+      fs.existsSync(
+        uploadPath
+      )
+    ) {
+
+      fs.unlinkSync(
+        uploadPath
+      );
+    }
+
+  } catch (error) {
+
+    console.warn(
+      "Physical image delete failed:",
+      error.message
+    );
+  }
+};
+
+// =====================================================
+// GET CATEGORIES
+//
+// Kept only for backward compatibility
+// with old routes.
+// =====================================================
+
+export const getProductCategories =
+  async (
+    req,
+    res
+  ) => {
+
+    try {
+
+      const [
+        categories,
+      ] =
+        await pool.query(`
+          SELECT
+            CategoryID,
+            CategoryName
+
+          FROM product_categories
+
+          ORDER BY
+            CategoryID ASC
+        `);
+
+      return res.status(200).json({
+        success: true,
+        categories,
+      });
+
+    } catch (error) {
+
+      return res.status(500).json({
+        success: false,
+        message:
+          error.message ||
+          "Unable to load categories.",
+      });
+    }
+  };
+
+// =====================================================
+// GET BRANDS
+//
+// Kept only for backward compatibility
+// with old routes.
+// =====================================================
+
+export const getProductBrands =
+  async (
+    req,
+    res
+  ) => {
+
+    try {
+
+      const [
+        brands,
+      ] =
+        await pool.query(`
+          SELECT
+            BrandID,
+            BrandName
+
+          FROM brands
+
+          ORDER BY
+            BrandID ASC
+        `);
+
+      return res.status(200).json({
+        success: true,
+        brands,
+      });
+
+    } catch (error) {
+
+      return res.status(500).json({
+        success: false,
+        message:
+          error.message ||
+          "Unable to load brands.",
+      });
+    }
+  };
