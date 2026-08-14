@@ -15,6 +15,8 @@ import {
 
 import { useNavigate } from "react-router-dom";
 
+import API_BASE_URL from "../../services/api.js";
+
 import "./Header.css";
 
 function Header({ onMenuClick }) {
@@ -118,7 +120,7 @@ function Header({ onMenuClick }) {
       setLoadingNotifications(true);
 
       const response = await fetch(
-        "https://inventry-management-system-k9a5.onrender.com/api/notifications",
+        `${API_BASE_URL}/notifications`,
       );
 
       const data = await response.json();
@@ -186,7 +188,7 @@ function Header({ onMenuClick }) {
 
   const markAsRead = async (id) => {
     try {
-      await fetch(`http://localhost:5000/api/notifications/${id}/read`, {
+      await fetch(`${API_BASE_URL}/notifications/${id}/read`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -214,7 +216,7 @@ function Header({ onMenuClick }) {
 
   const markAllAsRead = async () => {
     try {
-      await fetch("http://localhost:5000/api/notifications/read-all", {
+      await fetch(`${API_BASE_URL}/notifications/read-all`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

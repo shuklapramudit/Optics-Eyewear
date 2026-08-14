@@ -20,6 +20,8 @@ import {
 
 import "./Dashboard.css";
 
+import API_BASE_URL from "../../services/api.js";
+
 
 function Dashboard() {
 
@@ -65,10 +67,10 @@ function Dashboard() {
   // =====================================================
 
 const DASHBOARD_API =
-  "https://inventry-management-system-k9a5.onrender.com/api/dashboard";
+  `${API_BASE_URL}/dashboard`;
 
 const STOCK_API =
-  "https://inventry-management-system-k9a5.onrender.com/api/products";
+  `${API_BASE_URL}/products`;
 
 
   const LOW_STOCK_LIMIT = 10;

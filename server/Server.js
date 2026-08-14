@@ -74,6 +74,43 @@ dotenv.config();
 
 const app = express();
 
+const defaultAllowedOrigins = [
+  "https://inventry-management-system-8pp6.vercel.app",
+  "https://inventry-management-system-rust.vercel.app",
+  "http://localhost:5173",
+  "http://localhost:3000",
+];
+
+const environmentAllowedOrigins = [
+  process.env.CLIENT_URL,
+  process.env.FRONTEND_URL,
+  process.env.ALLOWED_ORIGINS,
+]
+  .filter(Boolean)
+  .flatMap((origins) => origins.split(","))
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const allowedOrigins = [
+  ...new Set([...defaultAllowedOrigins, ...environmentAllowedOrigins]),
+];
+
+const corsOptions = {
+  origin(origin, callback) {
+    // Requests without an Origin header (health checks, server-to-server calls)
+    // do not need browser CORS validation.
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`CORS origin not allowed: ${origin}`));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  optionsSuccessStatus: 204,
+};
+
 // =====================================================
 // PATH CONFIGURATION
 // =====================================================
@@ -120,14 +157,11 @@ if (
 // =====================================================
 
 app.use(
-  cors({
-    origin:
-      "https://inventry-management-system-rust.vercel.app",
-
-    credentials:
-      true,
-  })
+  cors(corsOptions)
 );
+
+// Apply the same CORS policy to every route preflight request.
+app.options(/.*/, cors(corsOptions));
 
 app.use(
   express.json()

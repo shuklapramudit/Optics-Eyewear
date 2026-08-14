@@ -14,8 +14,10 @@ import {
 
 import "./Customers.css";
 
+import API_BASE_URL from "../../services/api.js";
+
 const API =
-  "https://inventry-management-system-k9a5.onrender.com/api/customers";
+  `${API_BASE_URL}/customers`;
 
 const EMPTY_FORM = {
   FullName: "",

@@ -24,8 +24,10 @@ import {
 
 import "./Orders.css";
 
+import API_BASE_URL from "../../services/api.js";
+
 const API =
-  "https://inventry-management-system-k9a5.onrender.com/api/orders";
+  `${API_BASE_URL}/orders`;
 
 const emptyForm = {
   CustomerID: "",

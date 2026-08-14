@@ -27,15 +27,17 @@ import {
 
 import "./Sales.css";
 
+import API_BASE_URL from "../../services/api.js";
+
 
 const API =
-  "https://inventry-management-system-k9a5.onrender.com/api/sales";
+  `${API_BASE_URL}/sales`;
 
 const PRODUCTS_API =
-  "https://inventry-management-system-k9a5.onrender.com/api/products";
+  `${API_BASE_URL}/products`;
 
 const SERVER_URL =
-  "https://inventry-management-system-k9a5.onrender.com";
+  API_BASE_URL.replace(/\/api\/?$/, "");
 
 
 /* =========================================================

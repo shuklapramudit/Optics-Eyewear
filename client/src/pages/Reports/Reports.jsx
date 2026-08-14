@@ -22,8 +22,10 @@ import {
 
 import "./Reports.css";
 
+import API_BASE_URL from "../../services/api.js";
+
 const API =
-  "https://inventry-management-system-k9a5.onrender.com/api/reports";
+  `${API_BASE_URL}/reports`;
 
 const money = (value) =>
   Number(value || 0).toLocaleString("en-IN", {

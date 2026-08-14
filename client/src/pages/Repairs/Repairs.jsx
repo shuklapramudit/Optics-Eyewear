@@ -24,8 +24,10 @@ import {
 
 import "./Repairs.css";
 
+import API_BASE_URL from "../../services/api.js";
+
 const API =
-  "https://inventry-management-system-k9a5.onrender.com/api/repairs";
+  `${API_BASE_URL}/repairs`;
 
 const emptyForm = {
   CustomerID: "",
@@ -136,7 +138,7 @@ function Repairs() {
     try {
       const response =
        await fetch(
-  "https://inventry-management-system-k9a5.onrender.com/api/customers"
+  `${API_BASE_URL}/customers`
 );
 
       const data =

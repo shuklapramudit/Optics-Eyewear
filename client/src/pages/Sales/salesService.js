@@ -1,4 +1,6 @@
-const API = "http://localhost:5000/api/sales";
+import API_BASE_URL from "../../services/api.js";
+
+const API = `${API_BASE_URL}/sales`;
 
 const request = async (
   endpoint,

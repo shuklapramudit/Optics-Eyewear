@@ -22,8 +22,10 @@ import {
 
 import "./Purchases.css";
 
+import API_BASE_URL from "../../services/api.js";
+
 const API =
-  "https://inventry-management-system-k9a5.onrender.com/api/purchases";
+  `${API_BASE_URL}/purchases`;
 
 function Purchases() {
 

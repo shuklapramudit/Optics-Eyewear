@@ -1,4 +1,6 @@
-const API = "http://localhost:5000/api/sales";
+import API_BASE_URL from "./api.js";
+
+const API = `${API_BASE_URL}/sales`;
 
 // =====================================================
 // GENERIC REQUEST FUNCTION
