@@ -57,6 +57,10 @@ function Products() {
   const [barcodeImagePreview, setBarcodeImagePreview] = useState("");
   const barcodeImageInputRef = useRef(null);
 
+  // =====================================================
+  // IMAGE URL HELPER
+  // =====================================================
+
   const getImageUrl = useCallback((image) => {
     if (!image) return "";
     if (typeof image === "object") {
@@ -99,7 +103,9 @@ function Products() {
   const getProductImage = useCallback(
     (product) => {
       if (!product) return "";
-      return getImageUrl(product.ImageURL || product.imageURL || product.image || "");
+      return getImageUrl(
+        product.ImageURL || product.imageURL || product.image || ""
+      );
     },
     [getImageUrl]
   );
@@ -117,6 +123,10 @@ function Products() {
     },
     [getImageUrl]
   );
+
+  // =====================================================
+  // LOAD PRODUCTS
+  // =====================================================
 
   const loadProducts = useCallback(async () => {
     try {
@@ -148,6 +158,10 @@ function Products() {
   useEffect(() => {
     loadProducts();
   }, [loadProducts]);
+
+  // =====================================================
+  // SEARCH
+  // =====================================================
 
   const filteredProducts = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -200,6 +214,10 @@ function Products() {
     return product.ForWhom || product.TargetAudience || "—";
   };
 
+  // =====================================================
+  // VIEW & DELETE
+  // =====================================================
+
   const handleView = (product) => {
     setSelectedProduct(product);
     setImagePreviewOpen(false);
@@ -251,6 +269,10 @@ function Products() {
       setDeleteLoading(false);
     }
   };
+
+  // =====================================================
+  // ADD & EDIT MODAL HANDLERS
+  // =====================================================
 
   const handleAddProduct = () => {
     setEditingProduct({
@@ -329,6 +351,10 @@ function Products() {
       [name]: value,
     }));
   };
+
+  // =====================================================
+  // IMAGE HANDLERS
+  // =====================================================
 
   const validateImage = (file) => {
     if (!file) return false;
@@ -427,6 +453,10 @@ function Products() {
     return imageUrl;
   };
 
+  // =====================================================
+  // SUBMIT (ADD & EDIT)
+  // =====================================================
+
   const handleEditSubmit = async (event) => {
     event.preventDefault();
 
@@ -512,8 +542,13 @@ function Products() {
     }
   };
 
+  // =====================================================
+  // RENDER UI
+  // =====================================================
+
   return (
     <div className="products-page">
+      {/* HEADER */}
       <div className="page-top">
         <div>
           <h1>Products</h1>
@@ -530,6 +565,7 @@ function Products() {
         </button>
       </div>
 
+      {/* SUMMARY CARD */}
       <div className="product-summary">
         <div className="summary-card">
           <div className="summary-icon blue">
@@ -542,6 +578,7 @@ function Products() {
         </div>
       </div>
 
+      {/* ERROR */}
       {error && (
         <div className="products-error">
           <div>
@@ -555,6 +592,7 @@ function Products() {
         </div>
       )}
 
+      {/* TABLE */}
       <div className="content-card">
         <div className="table-toolbar">
           <div>
@@ -690,6 +728,7 @@ function Products() {
         )}
       </div>
 
+      {/* VIEW PRODUCT MODAL */}
       {selectedProduct && !imagePreviewOpen && (
         <div className="product-modal-overlay" onClick={closeView}>
           <div className="product-modal" onClick={(e) => e.stopPropagation()}>
@@ -747,6 +786,7 @@ function Products() {
         </div>
       )}
 
+      {/* IMAGE PREVIEW */}
       {imagePreviewOpen && selectedProduct && (
         <div
           className="image-preview-overlay"
@@ -781,6 +821,7 @@ function Products() {
         </div>
       )}
 
+      {/* ADD / EDIT MODAL */}
       {editModalOpen && editingProduct && (
         <div className="edit-product-overlay" onClick={closeEditModal}>
           <div
@@ -819,6 +860,7 @@ function Products() {
                 <small>Automatically generated</small>
               </div>
 
+              {/* PRODUCT IMAGE UPLOAD */}
               <div className="upload-section">
                 <label>Product Image 🖼️</label>
                 <div className="single-image-upload">
@@ -867,6 +909,7 @@ function Products() {
                 </div>
               </div>
 
+              {/* BARCODE IMAGE UPLOAD */}
               <div className="upload-section">
                 <label>Barcode Image 🏷️</label>
                 <div className="barcode-upload-area">
@@ -905,6 +948,7 @@ function Products() {
                 </div>
               </div>
 
+              {/* PRODUCT INFORMATION FIELDS */}
               <div className="edit-section">
                 <h3>Product Information</h3>
                 <div className="edit-grid">
@@ -980,6 +1024,7 @@ function Products() {
                 </div>
               </div>
 
+              {/* FOOTER BUTTONS */}
               <div className="edit-modal-footer">
                 <button
                   type="button"
