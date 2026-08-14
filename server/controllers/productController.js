@@ -38,47 +38,6 @@ const getImageUrl = (filename) => {
 
 
 // =====================================================
-// NORMALIZE PRODUCT TYPE
-// =====================================================
-
-const normalizeProductType = (value) => {
-  if (!value) {
-    return null;
-  }
-
-  const productType = String(value).trim();
-
-  const productTypeMap = {
-    "Optical Frames": "Frame",
-    "Optical Frame": "Frame",
-
-    "Prescription Lenses": "Lens",
-    "Prescription Lens": "Lens",
-
-    "Contact Lenses": "Contact Lens",
-    "Contact Lens": "Contact Lens",
-
-    Sunglasses: "Sunglasses",
-
-    Frame: "Frame",
-    Lens: "Lens",
-
-    Accessory: "Accessory",
-    Accessories: "Accessory",
-
-    "Lens Care": "Accessory",
-
-    Other: "Other",
-  };
-
-  return (
-    productTypeMap[productType] ||
-    productType
-  );
-};
-
-
-// =====================================================
 // PARSE IMAGES
 // =====================================================
 
@@ -447,7 +406,6 @@ export const getProducts = async (
             p.ProductID,
             p.ProductCode,
             p.ProductName,
-            p.ProductType,
 
             ${genderSQL},
 
@@ -642,7 +600,6 @@ export const getProductById =
               p.ProductID,
               p.ProductCode,
               p.ProductName,
-              p.ProductType,
 
               ${genderSQL},
 
@@ -916,7 +873,6 @@ export const createProduct =
     try {
       const {
         ProductName,
-        ProductType,
         ForWhom,
         TargetAudience,
         Price,
@@ -939,21 +895,6 @@ export const createProduct =
           success: false,
           message:
             "Product Name is required.",
-        });
-      }
-
-      const normalizedProductType =
-        normalizeProductType(
-          ProductType
-        );
-
-      if (
-        !normalizedProductType
-      ) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Product Type is required.",
         });
       }
 
@@ -1058,7 +999,6 @@ export const createProduct =
       const columns = [
         "ProductCode",
         "ProductName",
-        "ProductType",
         "ImageURL",
       ];
 
@@ -1067,12 +1007,10 @@ export const createProduct =
         String(
           ProductName
         ).trim(),
-        normalizedProductType,
         primaryImage,
       ];
 
       const placeholders = [
-        "?",
         "?",
         "?",
         "?",
@@ -1353,7 +1291,6 @@ export const updateProduct =
 
       const {
         ProductName,
-        ProductType,
         ForWhom,
         TargetAudience,
         Price,
@@ -1376,21 +1313,6 @@ export const updateProduct =
           success: false,
           message:
             "Product Name is required.",
-        });
-      }
-
-      const normalizedProductType =
-        normalizeProductType(
-          ProductType
-        );
-
-      if (
-        !normalizedProductType
-      ) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Product Type is required.",
         });
       }
 
@@ -1498,15 +1420,12 @@ export const updateProduct =
 
       const updateParts = [
         "ProductName = ?",
-        "ProductType = ?",
       ];
 
       const values = [
         String(
           ProductName
         ).trim(),
-
-        normalizedProductType,
       ];
 
       // =================================================
@@ -1985,129 +1904,5 @@ export const deleteProduct =
       });
     } finally {
       connection.release();
-    }
-  };
-
-
-// =====================================================
-// GET PRODUCT CATEGORIES
-// GET /api/products/categories
-// =====================================================
-
-export const getProductCategories =
-  async (
-    req,
-    res
-  ) => {
-    try {
-      const tableExists =
-        await hasTable(
-          pool,
-          "product_categories"
-        );
-
-      if (!tableExists) {
-        return res.status(200).json({
-          success: true,
-          categories: [],
-        });
-      }
-
-      const [
-        categories,
-      ] =
-        await pool.query(
-          `
-            SELECT
-              CategoryID,
-              CategoryName
-            FROM product_categories
-            ORDER BY
-              CategoryID ASC
-          `
-        );
-
-      return res.status(200).json({
-        success: true,
-        categories,
-      });
-    } catch (error) {
-      console.error(
-        "Get Product Categories Error:",
-        error
-      );
-
-      return res.status(500).json({
-        success: false,
-        message:
-          error.sqlMessage ||
-          error.message ||
-          "Unable to load categories.",
-        error:
-          error.sqlMessage ||
-          error.message,
-      });
-    }
-  };
-
-
-// =====================================================
-// GET PRODUCT BRANDS
-// GET /api/products/brands
-// =====================================================
-
-export const getProductBrands =
-  async (
-    req,
-    res
-  ) => {
-    try {
-      const tableExists =
-        await hasTable(
-          pool,
-          "brands"
-        );
-
-      if (!tableExists) {
-        return res.status(200).json({
-          success: true,
-          brands: [],
-        });
-      }
-
-      const [
-        brands,
-      ] =
-        await pool.query(
-          `
-            SELECT
-              BrandID,
-              BrandName
-            FROM brands
-            ORDER BY
-              BrandID ASC
-          `
-        );
-
-      return res.status(200).json({
-        success: true,
-        brands,
-      });
-    } catch (error) {
-      console.error(
-        "Get Product Brands Error:",
-        error
-      );
-
-      return res.status(500).json({
-        success: false,
-        message:
-          error.sqlMessage ||
-          error.message ||
-          "Unable to load brands.",
-        error:
-          error.sqlMessage ||
-          error.message,
-      });
     }
   };

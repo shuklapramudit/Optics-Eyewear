@@ -9,13 +9,8 @@ import {
   createProduct,
   updateProduct,
   deleteProduct,
-
-  getProductCategories,
-  getProductBrands,
-
   uploadProductImage,
   uploadProductImages,
-
   deleteProductImage,
 } from "../controllers/productController.js";
 
@@ -118,30 +113,6 @@ const upload = multer({
 router.get(
   "/",
   getProducts
-);
-
-
-// =====================================================
-// GET CATEGORIES
-// IMPORTANT: BEFORE /:id
-// GET /api/products/categories
-// =====================================================
-
-router.get(
-  "/categories",
-  getProductCategories
-);
-
-
-// =====================================================
-// GET BRANDS
-// IMPORTANT: BEFORE /:id
-// GET /api/products/brands
-// =====================================================
-
-router.get(
-  "/brands",
-  getProductBrands
 );
 
 
