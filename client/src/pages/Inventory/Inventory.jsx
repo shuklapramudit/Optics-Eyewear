@@ -509,8 +509,6 @@ function Inventory() {
               <tr>
                 <th>SKU</th>
                 <th>PRODUCT</th>
-                <th>CATEGORY</th>
-                <th>BRAND</th>
                 <th>STOCK</th>
                 <th>RESERVED</th>
                 <th>AVAILABLE</th>
@@ -563,19 +561,6 @@ function Inventory() {
                           {item.ProductName ||
                             "Unnamed Product"}
                         </strong>
-                      </td>
-
-                      <td>
-                        <span className="category-badge">
-                          {item.CategoryName ||
-                            item.ProductType ||
-                            "Other"}
-                        </span>
-                      </td>
-
-                      <td>
-                        {item.BrandName ||
-                          "Generic"}
                       </td>
 
                       <td>
