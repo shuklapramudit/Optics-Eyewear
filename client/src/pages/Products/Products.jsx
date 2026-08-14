@@ -22,28 +22,17 @@ import {
 } from "lucide-react";
 
 import "./Products.css";
-
 import API_BASE_URL from "../../services/api.js";
 
 const API = `${API_BASE_URL}/products`;
-
-const SERVER_URL = API_BASE_URL.replace(
-  /\/api\/?$/,
-  ""
-);
-
+const SERVER_URL = API_BASE_URL.replace(/\/api\/?$/, "");
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
-
 const ALLOWED_IMAGE_TYPES = [
   "image/jpeg",
   "image/png",
   "image/webp",
   "image/gif",
 ];
-
-// =====================================================
-// PRODUCTS
-// =====================================================
 
 function Products() {
   const [products, setProducts] = useState([]);
@@ -68,63 +57,49 @@ function Products() {
   const [barcodeImagePreview, setBarcodeImagePreview] = useState("");
   const barcodeImageInputRef = useRef(null);
 
-  // =====================================================
-  // IMAGE URL HELPER
-  // =====================================================
+  const getImageUrl = useCallback((image) => {
+    if (!image) return "";
+    if (typeof image === "object") {
+      return getImageUrl(
+        image.url ||
+          image.ImageURL ||
+          image.imageURL ||
+          image.path ||
+          image.src ||
+          image.image ||
+          ""
+      );
+    }
 
-  const getImageUrl = useCallback(
-    (image) => {
-      if (!image) return "";
+    if (typeof image !== "string") return "";
+    const cleanImage = image.trim();
+    if (!cleanImage) return "";
 
-      if (typeof image === "object") {
-        return getImageUrl(
-          image.url ||
-            image.ImageURL ||
-            image.imageURL ||
-            image.path ||
-            image.src ||
-            image.image ||
-            ""
-        );
-      }
-
-      if (typeof image !== "string") return "";
-
-      const cleanImage = image.trim();
-      if (!cleanImage) return "";
-
-      if (
-        cleanImage.startsWith("http://") ||
-        cleanImage.startsWith("https://") ||
-        cleanImage.startsWith("data:") ||
-        cleanImage.startsWith("blob:")
-      ) {
-        return cleanImage;
-      }
-
-      if (cleanImage.startsWith("/uploads/")) {
-        return `${SERVER_URL}${cleanImage}`;
-      }
-
-      if (cleanImage.startsWith("uploads/")) {
-        return `${SERVER_URL}/${cleanImage}`;
-      }
-
-      if (!cleanImage.startsWith("/")) {
-        return `${SERVER_URL}/uploads/${cleanImage}`;
-      }
-
+    if (
+      cleanImage.startsWith("http://") ||
+      cleanImage.startsWith("https://") ||
+      cleanImage.startsWith("data:") ||
+      cleanImage.startsWith("blob:")
+    ) {
       return cleanImage;
-    },
-    []
-  );
+    }
+
+    if (cleanImage.startsWith("/uploads/")) {
+      return `${SERVER_URL}${cleanImage}`;
+    }
+    if (cleanImage.startsWith("uploads/")) {
+      return `${SERVER_URL}/${cleanImage}`;
+    }
+    if (!cleanImage.startsWith("/")) {
+      return `${SERVER_URL}/uploads/${cleanImage}`;
+    }
+    return cleanImage;
+  }, []);
 
   const getProductImage = useCallback(
     (product) => {
       if (!product) return "";
-      return getImageUrl(
-        product.ImageURL || product.imageURL || product.image || ""
-      );
+      return getImageUrl(product.ImageURL || product.imageURL || product.image || "");
     },
     [getImageUrl]
   );
@@ -142,10 +117,6 @@ function Products() {
     },
     [getImageUrl]
   );
-
-  // =====================================================
-  // LOAD PRODUCTS
-  // =====================================================
 
   const loadProducts = useCallback(async () => {
     try {
@@ -177,10 +148,6 @@ function Products() {
   useEffect(() => {
     loadProducts();
   }, [loadProducts]);
-
-  // =====================================================
-  // SEARCH
-  // =====================================================
 
   const filteredProducts = useMemo(() => {
     const keyword = search.trim().toLowerCase();

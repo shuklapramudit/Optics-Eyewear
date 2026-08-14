@@ -16,56 +16,23 @@ import {
 
 const router = express.Router();
 
-
-// =====================================================
-// UPLOAD DIRECTORY
-// =====================================================
-
-const uploadDirectory = path.join(
-  process.cwd(),
-  "uploads"
-);
-
+const uploadDirectory = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDirectory)) {
-  fs.mkdirSync(uploadDirectory, {
-    recursive: true,
-  });
+  fs.mkdirSync(uploadDirectory, { recursive: true });
 }
-
-
-// =====================================================
-// MULTER STORAGE
-// =====================================================
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadDirectory);
   },
-
   filename: (req, file, cb) => {
-    const extension = path.extname(
-      file.originalname
-    );
-
-    const filename =
-      `product-${Date.now()}-${Math.round(
-        Math.random() * 1e9
-      )}${extension}`;
-
+    const extension = path.extname(file.originalname);
+    const filename = `product-${Date.now()}-${Math.round(Math.random() * 1e9)}${extension}`;
     cb(null, filename);
   },
 });
 
-
-// =====================================================
-// FILE FILTER
-// =====================================================
-
-const fileFilter = (
-  req,
-  file,
-  cb
-) => {
+const fileFilter = (req, file, cb) => {
   const allowedTypes = [
     "image/jpeg",
     "image/png",
@@ -73,134 +40,35 @@ const fileFilter = (
     "image/gif",
   ];
 
-  if (
-    allowedTypes.includes(
-      file.mimetype
-    )
-  ) {
+  if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(
-      new Error(
-        "Only JPG, PNG, WEBP and GIF images are allowed."
-      )
-    );
+    cb(new Error("Only JPG, PNG, WEBP and GIF images are allowed."));
   }
 };
 
-
-// =====================================================
-// MULTER
-// =====================================================
-
 const upload = multer({
   storage,
-
   fileFilter,
-
   limits: {
     fileSize: 5 * 1024 * 1024,
     files: 10,
   },
 });
 
+router.get("/", getProducts);
 
-// =====================================================
-// GET ALL PRODUCTS
-// GET /api/products
-// =====================================================
+// Optional Dummy Handlers for old frontend requests to avoid crashes
+router.get("/categories", (req, res) => res.status(200).json({ success: true, categories: [] }));
+router.get("/brands", (req, res) => res.status(200).json({ success: true, brands: [] }));
 
-router.get(
-  "/",
-  getProducts
-);
+router.post("/upload-image", upload.single("image"), uploadProductImage);
+router.post("/upload-images", upload.array("images", 10), uploadProductImages);
+router.delete("/images/:imageId", deleteProductImage);
 
-
-// =====================================================
-// UPLOAD SINGLE IMAGE
-// POST /api/products/upload-image
-// =====================================================
-
-router.post(
-  "/upload-image",
-  upload.single("image"),
-  uploadProductImage
-);
-
-
-// =====================================================
-// UPLOAD MULTIPLE IMAGES
-// POST /api/products/upload-images
-// =====================================================
-
-router.post(
-  "/upload-images",
-  upload.array(
-    "images",
-    10
-  ),
-  uploadProductImages
-);
-
-
-// =====================================================
-// DELETE PRODUCT IMAGE
-// IMPORTANT: BEFORE /:id
-// DELETE /api/products/images/:imageId
-// =====================================================
-
-router.delete(
-  "/images/:imageId",
-  deleteProductImage
-);
-
-
-// =====================================================
-// CREATE PRODUCT
-// POST /api/products
-// =====================================================
-
-router.post(
-  "/",
-  createProduct
-);
-
-
-// =====================================================
-// GET SINGLE PRODUCT
-// GET /api/products/:id
-// =====================================================
-
-router.get(
-  "/:id",
-  getProductById
-);
-
-
-// =====================================================
-// UPDATE PRODUCT
-// PUT /api/products/:id
-// =====================================================
-
-router.put(
-  "/:id",
-  updateProduct
-);
-
-
-// =====================================================
-// DELETE PRODUCT
-// DELETE /api/products/:id
-// =====================================================
-
-router.delete(
-  "/:id",
-  deleteProduct
-);
-
-
-// =====================================================
-// EXPORT
-// =====================================================
+router.post("/", createProduct);
+router.get("/:id", getProductById);
+router.put("/:id", updateProduct);
+router.delete("/:id", deleteProduct);
 
 export default router;
