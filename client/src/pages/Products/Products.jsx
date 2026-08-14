@@ -322,7 +322,6 @@ function Products() {
             ${product.ProductID || ""}
             ${product.ProductCode || ""}
             ${product.ProductName || ""}
-            ${product.ProductType || ""}
             ${product.ForWhom || ""}
             ${product.TargetAudience || ""}
           `.toLowerCase();
@@ -340,42 +339,6 @@ function Products() {
 
   const totalProducts =
     products.length;
-
-  const frameProducts =
-    products.filter(
-      (product) => {
-        const type =
-          String(
-            product.ProductType ||
-              ""
-          ).toLowerCase();
-
-        return (
-          type.includes("frame") ||
-          type.includes(
-            "sunglass"
-          )
-        );
-      }
-    ).length;
-
-  const lensProducts =
-    products.filter(
-      (product) => {
-        const type =
-          String(
-            product.ProductType ||
-              ""
-          ).toLowerCase();
-
-        return (
-          type.includes("lens") ||
-          type.includes(
-            "contact"
-          )
-        );
-      }
-    ).length;
 
   // =====================================================
   // PRODUCT ID
@@ -597,8 +560,6 @@ function Products() {
 
         ProductName: "",
 
-        ProductType: "",
-
         ForWhom: "",
 
         Price: "",
@@ -671,10 +632,6 @@ function Products() {
 
         ProductName:
           product.ProductName ||
-          "",
-
-        ProductType:
-          product.ProductType ||
           "",
 
         ForWhom:
@@ -1059,20 +1016,6 @@ function Products() {
       }
 
       // -------------------------------------------------
-      // PRODUCT TYPE
-      // -------------------------------------------------
-
-      if (
-        !editingProduct.ProductType
-      ) {
-        alert(
-          "Please select Product Type."
-        );
-
-        return;
-      }
-
-      // -------------------------------------------------
       // GENDER
       // -------------------------------------------------
 
@@ -1168,9 +1111,6 @@ function Products() {
         const payload = {
           ProductName:
             editingProduct.ProductName.trim(),
-
-          ProductType:
-            editingProduct.ProductType,
 
           ForWhom:
             editingProduct.ForWhom,
@@ -1335,50 +1275,6 @@ function Products() {
 
         </div>
 
-        <div className="summary-card">
-
-          <div className="summary-icon green">
-            <Glasses size={21} />
-          </div>
-
-          <div className="summary-content">
-
-            <span>
-              Frames
-            </span>
-
-            <strong>
-              {frameProducts.toLocaleString(
-                "en-IN"
-              )}
-            </strong>
-
-          </div>
-
-        </div>
-
-        <div className="summary-card">
-
-          <div className="summary-icon orange">
-            <Package size={21} />
-          </div>
-
-          <div className="summary-content">
-
-            <span>
-              Lenses
-            </span>
-
-            <strong>
-              {lensProducts.toLocaleString(
-                "en-IN"
-              )}
-            </strong>
-
-          </div>
-
-        </div>
-
       </div>
 
       {/* =================================================
@@ -1507,10 +1403,6 @@ function Products() {
                     </th>
 
                     <th>
-                      TYPE
-                    </th>
-
-                    <th>
                       GENDER
                     </th>
 
@@ -1617,19 +1509,6 @@ function Products() {
                               )}
 
                             </strong>
-
-                          </td>
-
-                          {/* TYPE */}
-
-                          <td>
-
-                            <span className="category-badge">
-
-                              {product.ProductType ||
-                                "—"}
-
-                            </span>
 
                           </td>
 
@@ -1841,19 +1720,6 @@ function Products() {
                 </p>
 
                 <div className="product-detail-grid">
-
-                  <div>
-
-                    <span>
-                      Product Type
-                    </span>
-
-                    <strong>
-                      {selectedProduct.ProductType ||
-                        "—"}
-                    </strong>
-
-                  </div>
 
                   <div>
 
@@ -2304,53 +2170,6 @@ function Products() {
                         placeholder="Enter product name"
                         required
                       />
-
-                    </div>
-
-                    {/* PRODUCT TYPE */}
-
-                    <div className="edit-field">
-
-                      <label>
-                        Product Type *
-                      </label>
-
-                      <select
-                        name="ProductType"
-                        value={
-                          editingProduct.ProductType
-                        }
-                        onChange={
-                          handleEditChange
-                        }
-                        required
-                      >
-
-                        <option value="">
-                          Select Product Type
-                        </option>
-
-                        <option value="Frame">
-                          Frame
-                        </option>
-
-                        <option value="Lens">
-                          Lens
-                        </option>
-
-                        <option value="Sunglasses">
-                          Sunglasses
-                        </option>
-
-                        <option value="Contact Lens">
-                          Contact Lens
-                        </option>
-
-                        <option value="Accessory">
-                          Accessory
-                        </option>
-
-                      </select>
 
                     </div>
 
