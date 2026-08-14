@@ -11,18 +11,8 @@ export const getAllInventory = async () => {
       i.ProductID,
 
       p.ProductCode,
-      p.Barcode,
       p.ProductName,
-      p.ProductType,
-      p.Color,
-      p.Size,
       p.ImageURL,
-
-      c.CategoryID,
-      c.CategoryName,
-
-      b.BrandID,
-      b.BrandName,
 
       COALESCE(i.Quantity, 0) AS Quantity,
       COALESCE(i.ReservedQuantity, 0) AS ReservedQuantity,
@@ -45,12 +35,6 @@ export const getAllInventory = async () => {
 
     INNER JOIN products p
       ON p.ProductID = i.ProductID
-
-    LEFT JOIN product_categories c
-      ON c.CategoryID = p.CategoryID
-
-    LEFT JOIN brands b
-      ON b.BrandID = p.BrandID
 
     ORDER BY
       p.ProductName ASC
@@ -149,12 +133,7 @@ export const getInventoryByProductId = async (
 
         p.ProductCode,
         p.ProductName,
-        p.ProductType,
-        p.Color,
-        p.Size,
-
-        c.CategoryName,
-        b.BrandName,
+        p.ImageURL,
 
         COALESCE(i.Quantity, 0)
           AS Quantity,
@@ -175,12 +154,6 @@ export const getInventoryByProductId = async (
 
       INNER JOIN products p
         ON p.ProductID = i.ProductID
-
-      LEFT JOIN product_categories c
-        ON c.CategoryID = p.CategoryID
-
-      LEFT JOIN brands b
-        ON b.BrandID = p.BrandID
 
       WHERE i.ProductID = ?
 
@@ -289,12 +262,6 @@ export const updateStock = async ({
       ]
     );
 
-    /*
-      Inventory transaction table is optional.
-      If it exists with the structure supplied below,
-      movement history will also be saved.
-    */
-
     try {
       await connection.query(
         `
@@ -318,11 +285,6 @@ export const updateStock = async ({
         ]
       );
     } catch (transactionError) {
-      /*
-        Do not fail stock update only because
-        transaction-history table is unavailable.
-      */
-
       console.warn(
         "Inventory transaction history was not saved:",
         transactionError.message
